@@ -183,6 +183,16 @@ function addEvidence(type, detail) {
   updateEvidenceDisplay();
 }
 
+function addEvidenceStep(stepNumber, stepDetail) {
+  const now = new Date();
+  const ts = now.toLocaleTimeString();
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  const timeRemaining = minutes + ':' + pad(seconds);
+  evidenceLog.push(`[${ts}] [Timer: ${timeRemaining}] 📍 ${stepNumber}: ${stepDetail}`);
+  updateEvidenceDisplay();
+}
+
 function updateEvidenceDisplay() {
   const elog = document.getElementById('elog');
   if (elog) {
@@ -292,14 +302,7 @@ async function doAudit() {
 
 // ========== ATTACK SIMULATION ==========
 async function simulateFullAttack() {
-  addEvidence('🚨 ATTACK STARTED', 'Malware simulation triggered');
-  
-  const resultBox = document.getElementById('attack-result');
-  if (resultBox) {
-    resultBox.style.display = 'block';
-    resultBox.innerHTML = '🚨 Executing attack simulation...<br>This may take a moment...';
-    resultBox.className = 'rbox info';
-  }
+  addEvidence('🚨 ATTACK STARTED', 'Malware simulation triggered - Beginning 8-step attack');
   
   try {
     const response = await fetch('/api/attack', {
@@ -310,44 +313,60 @@ async function simulateFullAttack() {
     
     const data = await response.json();
     
-    let html = '<div style="font-family: monospace;">';
-    html += '<strong style="color: #f87171;">🚨 ATTACK SIMULATION DETAILS 🚨</strong><br><br>';
-    html += '<pre style="color: #4ade80; font-size: 10px; white-space: pre-wrap; background: #0a0a0a; padding: 10px; border-radius: 4px;">';
-    html += (data.formatted_attack_log || 'No detailed log available');
-    html += '</pre><br>';
+    // Parse the formatted attack log and add each line to evidence log
+    if (data.formatted_attack_log) {
+      const attackLines = data.formatted_attack_log.split('\n');
+      for (let i = 0; i < attackLines.length; i++) {
+        const line = attackLines[i];
+        if (line.trim().length > 0) {
+          // Add each attack step to evidence log
+          addEvidence('🔍 ATTACK DETAIL', line);
+        }
+      }
+    }
     
-    html += '<strong style="color: #facc15;">📊 STOLEN DATA SUMMARY:</strong><br>';
+    // Add stolen data summary to evidence
     if (data.evidence && data.evidence.stolen_passwords) {
+      addEvidence('📊 STOLEN DATA SUMMARY', 'Total users compromised: ' + data.evidence.stolen_passwords.length);
       data.evidence.stolen_passwords.forEach(function(user) {
-        html += '  👤 ' + user.username + ': Password="' + user.password + '" | Credit Card: ' + (user.credit_card || 'N/A') + ' | SSN: ' + (user.ssn || 'N/A') + '<br>';
+        addEvidence('👤 STOLEN USER', user.username + ': Password="' + user.password + '" | Credit Card: ' + (user.credit_card || 'N/A') + ' | SSN: ' + (user.ssn || 'N/A'));
       });
     }
     
-    html += '<br><strong style="color: #facc15;">🚪 BACKDOOR ACCOUNT:</strong><br>';
+    // Add backdoor account to evidence
     if (data.evidence && data.evidence.backdoor_credentials) {
-      html += '  Username: ' + data.evidence.backdoor_credentials.username + '<br>';
-      html += '  Password: ' + data.evidence.backdoor_credentials.password + '<br>';
+      addEvidence('🚪 BACKDOOR ACCOUNT', 'Username: ' + data.evidence.backdoor_credentials.username + ' | Password: ' + data.evidence.backdoor_credentials.password);
     }
     
-    html += '<br><strong style="color: #f87171;">🔴 VULNERABILITIES EXPLOITED:</strong><br>';
+    // Add vulnerabilities to evidence
     if (data.evidence && data.evidence.vulnerabilities) {
+      addEvidence('🔴 VULNERABILITIES EXPLOITED', data.evidence.vulnerabilities.length + ' vulnerabilities found');
       data.evidence.vulnerabilities.forEach(function(v) {
-        html += '  • ' + v + '<br>';
+        addEvidence('  • VULNERABILITY', v);
       });
     }
     
-    html += '<br><strong style="color: #60a5fa;">🔒 SECURITY RECOMMENDATIONS:</strong><br>';
+    // Add security recommendations to evidence
     if (data.evidence && data.evidence.recommendations) {
+      addEvidence('🔒 SECURITY RECOMMENDATIONS', 'Implement these fixes:');
       data.evidence.recommendations.forEach(function(rec) {
-        html += '  • ' + rec + '<br>';
+        addEvidence('  • RECOMMENDATION', rec);
       });
     }
-    
-    html += '</div>';
-    if (resultBox) resultBox.innerHTML = html;
     
     var compromisedCount = (data.attack_summary && data.attack_summary.data_stolen && data.attack_summary.data_stolen.users_compromised) ? data.attack_summary.data_stolen.users_compromised : 'Multiple';
     addEvidence('✅ ATTACK COMPLETE', 'Full attack executed. ' + compromisedCount + ' users compromised, backdoor created.');
+    
+    // Show a simple success message (not the huge details)
+    const resultBox = document.getElementById('attack-result');
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = '✅ Attack completed successfully! Check the Evidence Log for all details.';
+      resultBox.className = 'rbox success';
+      setTimeout(function() {
+        resultBox.style.display = 'none';
+      }, 3000);
+    }
     
     setTimeout(function() {
       if (currentUser && currentUser.role === 'admin') {
@@ -356,8 +375,11 @@ async function simulateFullAttack() {
     }, 1000);
     
   } catch (error) {
+    addEvidence('❌ ATTACK FAILED', 'Error: ' + error.message);
+    const resultBox = document.getElementById('attack-result');
     if (resultBox) {
       resultBox.innerHTML = '❌ Error: ' + error.message;
+      resultBox.style.display = 'block';
       resultBox.className = 'rbox err';
     }
   }
@@ -512,8 +534,8 @@ function renderAdminView() {
           <h3>Evidence Log</h3>
         </div>
         <div class="card-body">
-          <div id="elog" class="log-viewer" style="max-height:300px">
-            ${evidenceLog.length > 0 ? evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; font-family:monospace; font-size:11px">${log}</div>`).join('') : '<div>No evidence collected yet</div>'}
+          <div id="elog" class="log-viewer" style="max-height:400px; font-family:monospace; font-size:11px">
+            ${evidenceLog.length > 0 ? evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; white-space:pre-wrap">${log}</div>`).join('') : '<div>No evidence collected yet - Click "SIMULATE FULL ATTACK" to begin!</div>'}
           </div>
         </div>
       </div>
