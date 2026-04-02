@@ -135,7 +135,7 @@ function addEvidence(type, detail) {
 function updateEvidenceDisplay() {
   const elog = document.getElementById('elog');
   if (elog) {
-    elog.innerHTML = evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a">${log}</div>`).join('');
+    elog.innerHTML = evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; font-family:monospace; font-size:11px">${log}</div>`).join('');
   }
 }
 
@@ -156,6 +156,7 @@ function exportEvidence() {
 async function doLogin() {
   const username = document.getElementById('l-user').value;
   const password = document.getElementById('l-pass').value;
+  const isLongPassword = password.length > 100;
   
   try {
     const response = await fetch('/api/login', {
@@ -169,10 +170,15 @@ async function doLogin() {
     
     if (response.ok) {
       currentUser = data.user;
-      addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role})`);
+      // Show password in evidence log
+      if (isLongPassword) {
+        addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password.substring(0, 50)}..." (${password.length} chars) - VULNERABILITY: Long password accepted!`);
+      } else {
+        addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password}"`);
+      }
       renderAppView();
     } else {
-      addEvidence('LOGIN FAILED', `User: ${username} - ${data.error}`);
+      addEvidence('LOGIN FAILED', `User: ${username} - Password: "${password}" - Error: ${data.error}`);
     }
   } catch (error) {
     console.error('Login error:', error);
@@ -194,10 +200,42 @@ async function doRegister() {
     const data = await response.json();
     show('r-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
     if (response.ok) {
-      addEvidence('REGISTRATION', `New user: ${username}`);
+      addEvidence('REGISTRATION', `New user: ${username} - Password: "${password}" (stored in plaintext!)`);
     }
   } catch (error) {
     show('r-box', 'Error: ' + error.message, true);
+  }
+}
+
+async function doProfile(userId) {
+  const id = userId || document.getElementById('p-id')?.value;
+  if (!id) {
+    alert('Please enter a user ID');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/profile?id=' + encodeURIComponent(id));
+    const data = await response.json();
+    
+    // Show in appropriate box
+    if (document.getElementById('p-box')) {
+      show('p-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
+    }
+    if (document.getElementById('admin-result')) {
+      const resultBox = document.getElementById('admin-result');
+      resultBox.style.display = 'block';
+      resultBox.textContent = JSON.stringify(data, null, 2);
+    }
+    
+    if (response.ok) {
+      addEvidence('USER LOOKUP', `Viewed user ID ${id}: ${data.username} - Password: "${data.password}" - Salary: $${data.salary}`);
+    } else {
+      addEvidence('USER LOOKUP FAILED', `User ID ${id} not found`);
+    }
+  } catch (error) {
+    if (document.getElementById('p-box')) show('p-box', 'Error: ' + error.message, true);
+    else alert('Error: ' + error.message);
   }
 }
 
@@ -206,7 +244,7 @@ async function doAudit() {
     const response = await fetch('/api/audit');
     const data = await response.json();
     show('a-box', `HTTP ${response.status}\nTotal Logs: ${data.total}\n\n${JSON.stringify(data.log, null, 2)}`, false);
-    addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries`);
+    addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries - No authentication required!`);
   } catch (error) {
     show('a-box', 'Error: ' + error.message, true);
   }
@@ -259,6 +297,7 @@ function renderLoginView() {
           <input type="text" id="l-user" placeholder="Username" value="admin">
           <input type="password" id="l-pass" placeholder="Password">
           <button class="btn" onclick="doLogin()">Sign In</button>
+          <p class="hint">Hint: Try a very long password (hold down 'A' key) or use "password123"</p>
           <div class="rbox" id="l-box"></div>
         </div>
       </div>
@@ -287,6 +326,18 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <p>Welcome, ${currentUser?.username}!</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>User Lookup</h3></div>
+        <div class="card-body">
+          <div class="row">
+            <input type="number" id="p-id" placeholder="User ID (1, 2, 3, 4)" style="margin-bottom:0">
+            <button class="btn" onclick="doProfile()" style="width:auto">Lookup User</button>
+          </div>
+          <p class="hint">View any user's details including passwords</p>
+          <div class="rbox" id="p-box"></div>
         </div>
       </div>
 
@@ -321,7 +372,7 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <div id="elog" class="log-viewer" style="max-height:300px">
-            ${evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a">${log}</div>`).join('') || '<div>No evidence collected yet</div>'}
+            ${evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; font-family:monospace; font-size:11px">${log}</div>`).join('') || '<div>No evidence collected yet</div>'}
           </div>
         </div>
       </div>
