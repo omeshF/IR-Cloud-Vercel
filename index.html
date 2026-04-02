@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QA — IR Lab (Attack Simulation)</title>
+<title>IR Lab — Attack Simulation</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -20,7 +20,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 #pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);transition:width 1s linear,background .3s;z-index:200}
 .hud-label{font-size:11px;color:var(--muted);text-transform:uppercase}
 .hud-btns{display:flex;gap:8px}
-.wrap{max-width:1000px;margin:0 auto;padding:74px 20px 40px}
+.wrap{max-width:1200px;margin:0 auto;padding:74px 20px 40px}
 .card{background:var(--surface);border:1px solid #2a2a2a;border-radius:8px;margin-bottom:16px}
 .card-head{padding:11px 18px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center}
 .card-head h3{font-size:13px;font-weight:500;color:var(--muted)}
@@ -32,7 +32,7 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 .btn-ghost{background:#333;color:#fff}
 .btn-sm{padding:5px 12px;width:auto;margin-bottom:0}
 .rbox{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:11px;margin-top:10px;
-  font-family:monospace;font-size:11px;white-space:pre-wrap;display:none;max-height:400px;overflow-y:auto}
+  font-family:monospace;font-size:11px;white-space:pre-wrap;display:none;max-height:500px;overflow-y:auto}
 .rbox.err{color:var(--red)}
 .rbox.info{color:var(--blue)}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
@@ -68,10 +68,9 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 
 <script>
 // ========== TIMER FUNCTIONS (7 minutes = 420 seconds) ==========
-let remaining = 420; // 7 minutes in seconds
+let remaining = 420;
 let running = false;
 let iv = null;
-let attackTriggered = false;
 let warningShown = false;
 
 function pad(n) {
@@ -84,7 +83,6 @@ function drawTimer() {
   const clockEl = document.getElementById('clock');
   clockEl.textContent = pad(m) + ':' + pad(s);
   
-  // Change color based on time remaining
   if (remaining < 60) {
     clockEl.className = 'crit';
   } else if (remaining < 120) {
@@ -97,7 +95,6 @@ function drawTimer() {
   const pb = document.getElementById('pbar');
   pb.style.width = pct + '%';
   
-  // Change progress bar color based on time
   if (remaining < 60) {
     pb.style.background = '#f87171';
   } else if (remaining < 120) {
@@ -106,8 +103,6 @@ function drawTimer() {
     pb.style.background = '#4ade80';
   }
   
-  // Check for 4-minute mark (240 seconds remaining from 420 = 180 seconds elapsed = 3 minutes left)
-  // Actually 4th minute means when timer shows 03:00 (180 seconds remaining)
   if (remaining <= 180 && !warningShown && currentUser && currentUser.role === 'admin') {
     warningShown = true;
     showAttackerLeftMessage();
@@ -115,19 +110,15 @@ function drawTimer() {
 }
 
 function showAttackerLeftMessage() {
-  // Show popup message
   alert('🚨 ATTACKER LEFT AND DELETED TRACES! 🚨\n\nThe attacker has completed their attack and wiped the logs. You are being logged out.\n\nAs an investigator, you must act FAST in serverless environments!');
   
-  // Add to evidence log before logout
   addEvidence('ATTACKER_LEFT', 'Attacker deleted traces and logged out. Investigation window closed!');
   
-  // Clear server logs display
   const container = document.getElementById('server-logs-container');
   if (container) {
     container.innerHTML = '<div class="log-entry log-critical">⚠️ LOGS DELETED BY ATTACKER ⚠️<br>Evidence has been wiped. In serverless environments, logs disappear when functions cold start!</div>';
   }
   
-  // Auto logout after message
   setTimeout(() => {
     if (currentUser) {
       logout();
@@ -147,7 +138,6 @@ function toggleTimer() {
         clearInterval(iv);
         running = false;
         document.getElementById('tbtn').textContent = 'Start';
-        // Timer ended - auto logout
         if (currentUser) {
           alert('⏰ Investigation time is over! You are being logged out.');
           logout();
@@ -174,7 +164,6 @@ drawTimer();
 let currentUser = null;
 let evidenceLog = [];
 
-// ========== HELPER FUNCTIONS ==========
 function show(elementId, message, isError) {
   const el = document.getElementById(elementId);
   if (el) {
@@ -187,7 +176,9 @@ function show(elementId, message, isError) {
 function addEvidence(type, detail) {
   const now = new Date();
   const ts = now.toLocaleTimeString();
-  const timeRemaining = Math.floor(remaining / 60) + ':' + pad(remaining % 60);
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  const timeRemaining = minutes + ':' + pad(seconds);
   evidenceLog.push(`[${ts}] [Timer: ${timeRemaining}] ${type}: ${detail}`);
   updateEvidenceDisplay();
 }
@@ -216,7 +207,6 @@ function exportEvidence() {
 async function doLogin() {
   const username = document.getElementById('l-user').value;
   const password = document.getElementById('l-pass').value;
-  const isLongPassword = password.length > 100;
   
   try {
     const response = await fetch('/api/login', {
@@ -226,27 +216,22 @@ async function doLogin() {
     });
     
     const data = await response.json();
-    show('l-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
+    show('l-box', 'HTTP ' + response.status + '\n' + JSON.stringify(data, null, 2), !response.ok);
     
     if (response.ok) {
       currentUser = data.user;
-      if (isLongPassword) {
-        addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password.substring(0, 50)}..." (${password.length} chars) - 🔴 VULNERABILITY: Long password accepted!`);
-      } else {
-        addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password}"`);
-      }
+      addEvidence('LOGIN SUCCESS', 'User: ' + username + ' (Role: ' + data.user.role + ') - Password used: "' + password + '"');
       renderAppView();
       
-      // Start timer automatically on login
       if (!running) {
         toggleTimer();
       }
     } else {
-      addEvidence('LOGIN FAILED', `User: ${username} - Password: "${password}" - Error: ${data.error}`);
+      addEvidence('LOGIN FAILED', 'User: ' + username + ' - Password: "' + password + '" - Error: ' + data.error);
     }
   } catch (error) {
     console.error('Login error:', error);
-    show('l-box', 'Error: ' + error.message + '\n\nMake sure the backend API is deployed!', true);
+    show('l-box', 'Error: ' + error.message, true);
   }
 }
 
@@ -262,9 +247,9 @@ async function doRegister() {
       body: JSON.stringify({ username, email, password })
     });
     const data = await response.json();
-    show('r-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
+    show('r-box', 'HTTP ' + response.status + '\n' + JSON.stringify(data, null, 2), !response.ok);
     if (response.ok) {
-      addEvidence('REGISTRATION', `New user: ${username} - Password: "${password}" (🔴 stored in plaintext!)`);
+      addEvidence('REGISTRATION', 'New user: ' + username + ' - Password: "' + password + '" (🔴 stored in plaintext!)');
     }
   } catch (error) {
     show('r-box', 'Error: ' + error.message, true);
@@ -283,22 +268,14 @@ async function doProfile(userId) {
     const data = await response.json();
     
     if (document.getElementById('p-box')) {
-      show('p-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
-    }
-    if (document.getElementById('admin-result')) {
-      const resultBox = document.getElementById('admin-result');
-      resultBox.style.display = 'block';
-      resultBox.textContent = JSON.stringify(data, null, 2);
+      show('p-box', 'HTTP ' + response.status + '\n' + JSON.stringify(data, null, 2), !response.ok);
     }
     
     if (response.ok) {
-      addEvidence('🔴 IDOR EXPLOIT', `Viewed user ID ${id}: ${data.username} - Password: "${data.password}" - Salary: $${data.salary} - SSN: ${data.ssn || 'N/A'}`);
-    } else {
-      addEvidence('USER LOOKUP FAILED', `User ID ${id} not found`);
+      addEvidence('🔴 IDOR EXPLOIT', 'Viewed user ID ' + id + ': ' + data.username + ' - Password: "' + data.password + '" - Credit Card: ' + (data.credit_card || 'N/A') + ' - SSN: ' + (data.ssn || 'N/A'));
     }
   } catch (error) {
     if (document.getElementById('p-box')) show('p-box', 'Error: ' + error.message, true);
-    else alert('Error: ' + error.message);
   }
 }
 
@@ -306,8 +283,8 @@ async function doAudit() {
   try {
     const response = await fetch('/api/audit');
     const data = await response.json();
-    show('a-box', `HTTP ${response.status}\nTotal Logs: ${data.total}\n\n${JSON.stringify(data.log, null, 2)}`, false);
-    addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries - 🔴 No authentication required!`);
+    show('a-box', 'HTTP ' + response.status + '\nTotal Logs: ' + (data.total || 0) + '\n\n' + JSON.stringify(data.log || [], null, 2), false);
+    addEvidence('AUDIT LOG ACCESS', 'Retrieved ' + (data.total || 0) + ' log entries - 🔴 No authentication required!');
   } catch (error) {
     show('a-box', 'Error: ' + error.message, true);
   }
@@ -315,11 +292,11 @@ async function doAudit() {
 
 // ========== ATTACK SIMULATION ==========
 async function simulateFullAttack() {
-  addEvidence('🚨 ATTACK STARTED', 'Malware simulation triggered at ' + new Date().toLocaleTimeString());
+  addEvidence('🚨 ATTACK STARTED', 'Malware simulation triggered');
   
   const resultBox = document.getElementById('attack-result');
   resultBox.style.display = 'block';
-  resultBox.innerHTML = '🚨 Executing attack simulation... Please wait...';
+  resultBox.innerHTML = '🚨 Executing attack simulation...<br>This may take a moment...';
   resultBox.className = 'rbox info';
   
   try {
@@ -332,55 +309,51 @@ async function simulateFullAttack() {
     const data = await response.json();
     
     let html = '<div style="font-family: monospace;">';
-    html += '<strong style="color: #f87171;">🚨 ATTACK SIMULATION RESULTS 🚨</strong><br><br>';
-    html += '<strong>Attack ID:</strong> ' + data.attack_summary.attack_id + '<br>';
-    html += '<strong>Timestamp:</strong> ' + new Date(data.attack_summary.timestamp).toLocaleString() + '<br>';
-    html += '<strong>Attacker IP:</strong> ' + data.attack_summary.attacker_ip + '<br>';
-    html += '<strong style="color: #facc15;">Vulnerabilities Exploited:</strong><br>';
+    html += '<strong style="color: #f87171;">🚨 ATTACK SIMULATION DETAILS 🚨</strong><br><br>';
+    html += '<pre style="color: #4ade80; font-size: 10px; white-space: pre-wrap; background: #0a0a0a; padding: 10px; border-radius: 4px;">';
+    html += (data.formatted_attack_log || 'No detailed log available');
+    html += '</pre><br>';
     
-    data.attack_summary.vulnerabilities_used.forEach(v => {
-      html += '  🔴 ' + v + '<br>';
-    });
+    html += '<strong style="color: #facc15;">📊 STOLEN DATA SUMMARY:</strong><br>';
+    if (data.evidence && data.evidence.stolen_passwords) {
+      data.evidence.stolen_passwords.forEach(function(user) {
+        html += '  👤 ' + user.username + ': Password="' + user.password + '" | Credit Card: ' + (user.credit_card || 'N/A') + ' | SSN: ' + (user.ssn || 'N/A') + '<br>';
+      });
+    }
     
-    html += '<br><strong style="color: #facc15;">Data Exfiltrated:</strong><br>';
-    data.attack_summary.details.dataExfiltrated.forEach(item => {
-      if (item.type === 'USER_DATA') {
-        html += `  📁 User ${item.username}: Password="${item.password}", Email=${item.email}<br>`;
-      } else if (item.type === 'CRACKED_CREDENTIALS') {
-        html += `  🔑 ${item.count} passwords cracked: `;
-        item.credentials.forEach(c => html += `${c.username}:${c.password} `);
-        html += '<br>';
-      } else if (item.type === 'BACKDOOR_ACCOUNT') {
-        html += `  🚪 Backdoor created: ${item.username} / ${item.password}<br>`;
-      } else if (item.type === 'ACTIVE_SESSIONS') {
-        html += `  🎫 ${item.count} active sessions stolen<br>`;
-      } else if (item.type === 'AUDIT_LOG') {
-        html += `  📋 ${item.entries} audit log entries stolen<br>`;
-      }
-    });
+    html += '<br><strong style="color: #facc15;">🚪 BACKDOOR ACCOUNT:</strong><br>';
+    if (data.evidence && data.evidence.backdoor_credentials) {
+      html += '  Username: ' + data.evidence.backdoor_credentials.username + '<br>';
+      html += '  Password: ' + data.evidence.backdoor_credentials.password + '<br>';
+    }
     
-    html += '<br><strong style="color: #4ade80;">✅ Attack Complete!</strong><br>';
-    html += 'Evidence logged. Check the Server Logs section above!<br><br>';
+    html += '<br><strong style="color: #f87171;">🔴 VULNERABILITIES EXPLOITED:</strong><br>';
+    if (data.evidence && data.evidence.vulnerabilities) {
+      data.evidence.vulnerabilities.forEach(function(v) {
+        html += '  • ' + v + '<br>';
+      });
+    }
     
-    html += '<strong style="color: #60a5fa;">🔒 Security Recommendations:</strong><br>';
-    data.evidence.recommendations.forEach(rec => {
-      html += '  • ' + rec + '<br>';
-    });
+    html += '<br><strong style="color: #60a5fa;">🔒 SECURITY RECOMMENDATIONS:</strong><br>';
+    if (data.evidence && data.evidence.recommendations) {
+      data.evidence.recommendations.forEach(function(rec) {
+        html += '  • ' + rec + '<br>';
+      });
+    }
     
     html += '</div>';
     resultBox.innerHTML = html;
-    resultBox.className = 'rbox';
     
-    addEvidence('✅ ATTACK COMPLETE', `Full attack executed - ${data.attack_summary.vulnerabilities_used.length} vulnerabilities exploited. ${data.attack_summary.details.dataExfiltrated.length} data records stolen.`);
+    var compromisedCount = (data.attack_summary && data.attack_summary.data_stolen && data.attack_summary.data_stolen.users_compromised) ? data.attack_summary.data_stolen.users_compromised : 'Multiple';
+    addEvidence('✅ ATTACK COMPLETE', 'Full attack executed. ' + compromisedCount + ' users compromised, backdoor created.');
     
-    setTimeout(() => {
+    setTimeout(function() {
       fetchServerLogs();
     }, 1000);
     
   } catch (error) {
     resultBox.innerHTML = '❌ Error: ' + error.message;
     resultBox.className = 'rbox err';
-    addEvidence('❌ ATTACK FAILED', `Error: ${error.message}`);
   }
 }
 
@@ -390,7 +363,6 @@ function logout() {
   currentUser = null;
   evidenceLog = [];
   renderAppView();
-  // Stop timer
   if (running) {
     toggleTimer();
   }
@@ -406,27 +378,25 @@ async function fetchServerLogs() {
       if (data.log.length === 0) {
         container.innerHTML = '<div class="log-entry">⚠️ No logs found. Click the attack button to generate evidence!</div>';
       } else {
-        container.innerHTML = data.log.map(log => {
+        container.innerHTML = data.log.map(function(log) {
           let logClass = '';
-          if (log.type === 'MALWARE_TRIGGERED' || log.type === 'DATA_EXFILTRATION') logClass = 'log-critical';
-          else if (log.type === 'BRUTE_FORCE_SUCCESS' || log.type === 'BACKDOOR_CREATED') logClass = 'log-warning';
+          if (log.type && (log.type.includes('ATTACK') || log.type === 'DATA_EXFILTRATION')) logClass = 'log-critical';
+          else if (log.type && (log.type.includes('SUCCESS') || log.type === 'BACKDOOR_CREATED')) logClass = 'log-warning';
           else if (log.type === 'LOGIN_SUCCESS') logClass = 'log-success';
-          else if (log.type === 'LOGIN_FAIL') logClass = 'log-critical';
           
           let detailDisplay = JSON.stringify(log.detail, null, 2);
-          if (detailDisplay.length > 300) detailDisplay = detailDisplay.substring(0, 300) + '...';
+          if (detailDisplay.length > 200) detailDisplay = detailDisplay.substring(0, 200) + '...';
           
           return `
             <div class="log-entry ${logClass}">
               <span class="log-timestamp">[${new Date(log.ts).toLocaleTimeString()}]</span>
-              <strong>${log.type}</strong><br>
-              <span style="color:#6b7280; font-size:9px">${detailDisplay}</span><br>
-              <span style="color:#4b5563; font-size:9px">IP: ${log.ip}</span>
+              <strong>${log.type || 'UNKNOWN'}</strong><br>
+              <span style="color:#6b7280; font-size:9px">${detailDisplay}</span>
             </div>
           `;
         }).join('');
       }
-      addEvidence('LOGS REFRESHED', `Retrieved ${data.log.length} log entries from server`);
+      addEvidence('LOGS REFRESHED', 'Retrieved ' + data.log.length + ' log entries');
     }
   } catch (error) {
     console.error('Failed to fetch logs:', error);
@@ -465,32 +435,32 @@ function renderLoginView() {
 function renderAdminView() {
   return `
     <div>
+      <!-- Attack Simulation Card - TOP -->
+      <div class="card" style="border-color: #dc2626; margin-bottom: 20px;">
+        <div class="card-head" style="background: rgba(220, 38, 38, 0.2);">
+          <h3 style="color: #fca5a5;">🚨 MALWARE SIMULATION - Click to see attack in action</h3>
+        </div>
+        <div class="card-body">
+          <p style="color: #fca5a5; margin-bottom: 15px; font-size: 14px;">
+            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities. Click it
+          </p>
+          
+          <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626; padding: 12px; font-size: 16px; font-weight: bold;">
+            💣 SIMULATE FULL ATTACK
+          </button>
+          
+          <div id="attack-result" class="rbox" style="display: none; margin-top: 15px;"></div>
+        </div>
+      </div>
+
       <div class="card" style="border-color:#4ade80">
         <div class="card-head">
           <h3>Admin Dashboard</h3>
           <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
         </div>
         <div class="card-body">
-          <p>Welcome, ${currentUser?.username}!</p>
+          <p>Welcome, ${currentUser ? currentUser.username : 'Admin'}!</p>
           <p class="hint" style="color:var(--yellow)">⚠️ Timer started! You have 7 minutes to investigate. At 4 minutes, attacker will delete logs!</p>
-        </div>
-      </div>
-
-      <!-- Attack Simulation Card -->
-      <div class="card" style="border-color: #dc2626;">
-        <div class="card-head" style="background: rgba(220, 38, 38, 0.1);">
-          <h3>🚨 MALWARE SIMULATION - Click to see attack in action</h3>
-        </div>
-        <div class="card-body">
-          <p style="color: #fca5a5; margin-bottom: 15px; font-size: 13px;">
-            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities. Click it
-          </p>
-          
-          <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626;">
-            💣 SIMULATE FULL ATTACK
-          </button>
-          
-          <div id="attack-result" class="rbox" style="display: none; margin-top: 15px; background: #1a0a0a; border-color: #dc2626;"></div>
         </div>
       </div>
 
@@ -501,7 +471,7 @@ function renderAdminView() {
             <input type="number" id="p-id" placeholder="User ID (1, 2, 3, 4)" style="margin-bottom:0">
             <button class="btn" onclick="doProfile()" style="width:auto">Lookup User</button>
           </div>
-          <p class="hint">🔴 No authentication required! Try IDs 1-4</p>
+          <p class="hint">🔴 No authentication required! Try IDs 1-4 to see credit cards and SSNs</p>
           <div class="rbox" id="p-box"></div>
         </div>
       </div>
@@ -524,35 +494,9 @@ function renderAdminView() {
           </div>
         </div>
         <div class="card-body">
-          <div style="background: #1a0a0a; border: 1px solid #7f1d1d; border-radius: 6px; padding: 10px; margin-bottom: 15px;">
-            <p style="color: #fca5a5; font-size: 12px; margin-bottom: 5px;">
-              🔴 <strong>ATTACK EVIDENCE WILL APPEAR HERE</strong>
-            </p>
-            <p style="color: #9ca3af; font-size: 11px;">
-              Click "Simulate Full Attack" above, then refresh logs to see:
-              • MALWARE_TRIGGERED events<br>
-              • DATA_EXFILTRATION records with stolen passwords<br>
-              • BRUTE_FORCE_SUCCESS attempts<br>
-              • BACKDOOR_CREATED entries<br>
-              • Complete attack timeline
-            </p>
-          </div>
-          
-          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">🔄 Refresh Logs (See Attack Evidence)</button>
-          
+          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">🔄 Refresh Logs</button>
           <div id="server-logs-container" class="log-viewer">
             <div class="log-entry">Click "Refresh Logs" - Attack evidence will appear here after simulation</div>
-          </div>
-          
-          <div class="hint" style="margin-top: 10px; background: #1a1a1a; padding: 8px; border-radius: 4px;">
-            <code style="color: var(--yellow);">
-            🎯 FORENSICS EXERCISE: After clicking the attack button, answer:<br>
-            1. What vulnerabilities were exploited?<br>
-            2. What data was stolen?<br>
-            3. Was a backdoor account created?<br>
-            4. How would you fix these vulnerabilities?<br>
-            5. Why did the attacker delete logs at 4 minutes?
-            </code>
           </div>
         </div>
       </div>
@@ -563,7 +507,7 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <div id="elog" class="log-viewer" style="max-height:300px">
-            ${evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; font-family:monospace; font-size:11px">${log}</div>`).join('') || '<div>No evidence collected yet</div>'}
+            ${evidenceLog.length > 0 ? evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; font-family:monospace; font-size:11px">${log}</div>`).join('') : '<div>No evidence collected yet</div>'}
           </div>
         </div>
       </div>
@@ -581,7 +525,6 @@ function renderAppView() {
   }
 }
 
-// Initial render
 renderAppView();
 </script>
 </body>
