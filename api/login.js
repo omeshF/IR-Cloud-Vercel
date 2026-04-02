@@ -1,45 +1,64 @@
-// 🔴 VULN #1: API key hardcoded in source (should use env vars properly)
-const SECRET_API_KEY = "sk-vercel-lab-abc123secret";
+import { users, logEvent } from '../lib/db.js';
 
-// 🔴 VULN #2: Hardcoded credentials
-const USERS = {
-  "admin": "password123",
-  "alice": "letmein",
-  "bob":   "bob123"
-};
+// 🔴 VULN A02: Hardcoded secret key in source
+const SESSION_SECRET = "super-secret-session-key-do-not-share";
+
+let failedAttempts = {};
 
 export default function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== 'POST') return res.status(405).end();
 
   const { username, password } = req.body;
+  const ip = req.headers['x-forwarded-for'] || 'unknown';
 
-  // 🔴 VULN #3: Credentials logged to serverless logs
-  console.log(`[LOGIN] Attempt - username: ${username} password: ${password}`);
-  console.log(`[CONFIG] API Key loaded: ${SECRET_API_KEY}`);
+  // 🔴 VULN A09: Credentials written to log
+  console.log(`[LOGIN] Attempt from ${ip} — username=${username} password=${password}`);
+  console.log(`[CONFIG] Session secret=${SESSION_SECRET}`);
 
-  // 🔴 VULN #4: No rate limiting - unlimited attempts
-  if (USERS[username] && USERS[username] === password) {
-    console.log(`[LOGIN] SUCCESS for user: ${username}`);
-    return res.status(200).json({
-      success: true,
-      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.fake.token",
-      // 🔴 VULN #5: Returning internal info in response
-      debug: {
-        serverRegion: process.env.VERCEL_REGION || "unknown",
-        nodeVersion:  process.version,
-        allUsers:     Object.keys(USERS)
-      }
+  // 🔴 VULN A07: No rate limiting — unlimited brute force attempts
+  failedAttempts[ip] = (failedAttempts[ip] || 0);
+
+  const user = users.find(u => u.username === username);
+
+  if (!user) {
+    failedAttempts[ip]++;
+    logEvent('LOGIN_FAIL', { username, reason: 'user not found' }, req);
+    // 🔴 VULN A01: Verbose error reveals whether username exists
+    return res.status(401).json({ error: `No account found for username: ${username}` });
+  }
+
+  if (user.password !== password) {
+    failedAttempts[ip]++;
+    logEvent('LOGIN_FAIL', { username, reason: 'wrong password', attempts: failedAttempts[ip] }, req);
+    return res.status(401).json({
+      error:    'Incorrect password',
+      attempts: failedAttempts[ip],
+      // 🔴 VULN A01: Leaks attempt count per IP
     });
   }
 
-  // 🔴 VULN #6: Verbose error reveals whether username exists
-  if (USERS[username]) {
-    console.log(`[LOGIN] FAIL - correct username, wrong password: ${username}`);
-    return res.status(401).json({ error: "Wrong password for user: " + username });
-  }
+  failedAttempts[ip] = 0;
+  logEvent('LOGIN_SUCCESS', { username, role: user.role }, req);
 
-  console.log(`[LOGIN] FAIL - unknown username: ${username}`);
-  return res.status(401).json({ error: "User not found: " + username });
+  // 🔴 VULN A07: Token is just base64 of username — not signed
+  const fakeToken = Buffer.from(`${username}:${user.role}:${Date.now()}`).toString('base64');
+
+  return res.status(200).json({
+    message: 'Login successful',
+    token:   fakeToken,
+    user: {
+      id:       user.id,
+      username: user.username,
+      email:    user.email,
+      role:     user.role,
+      // 🔴 VULN A01: Returns salary and role in login response
+      salary:   user.salary,
+    },
+    debug: {
+      // 🔴 VULN A05: Debug info returned in production response
+      sessionSecret: SESSION_SECRET,
+      nodeVersion:   process.version,
+      allUsers:      users.map(u => u.username),
+    }
+  });
 }

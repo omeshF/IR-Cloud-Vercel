@@ -1,317 +1,353 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IR Lab — Vercel Incident</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CorpPortal — IR Lab</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--surface:#111;--border:#222;--border2:#2a2a2a;
+  --text:#e0e0e0;--muted:#6b7280;--green:#4ade80;--red:#f87171;
+  --yellow:#facc15;--blue:#60a5fa;--accent:#1d4ed8;
+}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 
-    /* Timer bar */
-    #timer-bar {
-      position: fixed; top: 0; left: 0; right: 0;
-      background: #1a1a1a; border-bottom: 1px solid #333;
-      padding: 10px 24px; display: flex; align-items: center;
-      justify-content: space-between; z-index: 100;
-    }
-    #timer-display {
-      font-size: 28px; font-weight: 700; font-family: monospace;
-      color: #4ade80;
-      transition: color 0.3s;
-    }
-    #timer-display.warning { color: #facc15; }
-    #timer-display.danger  { color: #f87171; }
-    .timer-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: .08em; }
-    #progress-bar { position: fixed; top: 52px; left: 0; height: 3px; background: #4ade80; transition: width 1s linear, background .3s; z-index: 100; }
+/* ── Timer ── */
+#hud{position:fixed;top:0;left:0;right:0;height:54px;background:#0a0a0a;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;
+  justify-content:space-between;padding:0 20px;z-index:200}
+#clock{font-size:26px;font-weight:700;font-family:monospace;color:var(--green);transition:color .3s}
+#clock.warn{color:var(--yellow)}#clock.crit{color:var(--red)}
+#pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);
+  transition:width 1s linear,background .3s;z-index:200}
+.hud-label{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.hud-btns{display:flex;gap:8px}
 
-    .content { max-width: 860px; margin: 0 auto; padding: 80px 24px 40px; }
+/* ── Layout ── */
+.wrap{max-width:900px;margin:0 auto;padding:74px 20px 40px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
 
-    .incident-banner {
-      background: #1c0a0a; border: 1px solid #7f1d1d;
-      border-radius: 8px; padding: 20px 24px; margin-bottom: 28px;
-    }
-    .incident-banner h1 { color: #fca5a5; font-size: 18px; margin-bottom: 6px; }
-    .incident-banner p  { color: #9ca3af; font-size: 13px; line-height: 1.6; }
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.card-head{padding:11px 18px;background:#161616;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center}
+.card-head h3{font-size:13px;font-weight:500;color:var(--muted)}
+.card-body{padding:18px}
+.tag{font-size:10px;padding:1px 8px;border-radius:10px;background:#1c1917;color:#a16207;border:1px solid #292524}
 
-    .brief {
-      background: #111; border: 1px solid #2a2a2a;
-      border-radius: 8px; padding: 20px 24px; margin-bottom: 24px;
-    }
-    .brief h2 { font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing:.06em; margin-bottom: 12px; }
-    .brief p  { font-size: 14px; color: #d1d5db; line-height: 1.7; margin-bottom: 8px; }
-    .brief ul { padding-left: 20px; }
-    .brief li { font-size: 14px; color: #d1d5db; line-height: 1.8; }
+/* ── Forms ── */
+.field{margin-bottom:10px}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+input[type=text],input[type=email],input[type=password],input[type=number]{
+  width:100%;background:#0a0a0a;border:1px solid #333;color:var(--text);
+  padding:8px 11px;border-radius:6px;font-size:13px;font-family:inherit}
+input:focus{outline:none;border-color:#555}
+.btn{display:inline-block;padding:8px 18px;border-radius:6px;font-size:13px;
+  font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:background .15s}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#1e40af}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}.btn-ghost:hover{background:#1a1a1a}
+.btn-danger{background:#7f1d1d;color:#fca5a5}.btn-danger:hover{background:#991b1b}
+.btn-sm{padding:5px 12px;font-size:12px}
+.row{display:flex;gap:8px;align-items:center}
+.row input{margin:0;flex:1}
 
-    .panel { background: #111; border: 1px solid #2a2a2a; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
-    .panel-header {
-      padding: 12px 20px; background: #161616;
-      border-bottom: 1px solid #2a2a2a;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .panel-header h3 { font-size: 13px; font-weight: 500; color: #9ca3af; }
-    .panel-body { padding: 20px; }
+/* ── Response / log boxes ── */
+.rbox{background:#0a0a0a;border:1px solid var(--border);border-radius:6px;
+  padding:11px;margin-top:10px;font-family:monospace;font-size:11px;
+  color:var(--green);white-space:pre-wrap;max-height:220px;overflow-y:auto;display:none}
+.rbox.err{color:var(--red)}.rbox.info{color:var(--blue)}
+.hint{font-size:12px;color:var(--muted);margin-top:6px;font-style:italic}
 
-    input, button, select {
-      font-family: inherit; font-size: 13px;
-    }
-    input[type="text"], input[type="password"] {
-      width: 100%; background: #0a0a0a; border: 1px solid #333;
-      color: #e0e0e0; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;
-    }
-    button {
-      background: #1d4ed8; color: #fff; border: none;
-      padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: 500;
-    }
-    button:hover { background: #1e40af; }
-    button.secondary { background: #1a1a1a; border: 1px solid #333; color: #9ca3af; }
-    button.secondary:hover { background: #222; }
+/* ── Evidence ── */
+.ebox{background:#0a0a0a;border:1px solid var(--border);border-radius:6px;
+  padding:11px;font-family:monospace;font-size:11px;color:var(--green);
+  white-space:pre-wrap;min-height:100px;max-height:320px;overflow-y:auto}
 
-    .response-box {
-      background: #0a0a0a; border: 1px solid #222; border-radius: 6px;
-      padding: 12px; margin-top: 12px; font-family: monospace; font-size: 12px;
-      color: #86efac; white-space: pre-wrap; max-height: 200px; overflow-y: auto;
-      display: none;
-    }
-    .response-box.error { color: #fca5a5; }
+/* ── Checklist ── */
+.checks{list-style:none}
+.checks li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;
+  border-bottom:1px solid #1a1a1a;font-size:13px;color:var(--muted);cursor:pointer}
+.checks li:hover{color:var(--text)}.checks li.done{color:var(--green);text-decoration:line-through}
+.cb{width:15px;height:15px;border:1px solid #444;border-radius:3px;flex-shrink:0;margin-top:1px}
+.checks li.done .cb{background:var(--green);border-color:var(--green)}
 
-    .hint {
-      font-size: 12px; color: #6b7280; margin-top: 8px; font-style: italic;
-    }
-    .url-row { display: flex; gap: 8px; align-items: center; }
-    .url-row input { margin: 0; flex: 1; }
+/* ── Incident banner ── */
+.alert{background:#1c0a0a;border:1px solid #7f1d1d;border-radius:8px;padding:18px 22px;margin-bottom:20px}
+.alert h1{color:#fca5a5;font-size:17px;margin-bottom:6px}
+.alert p{color:#9ca3af;font-size:13px;line-height:1.6}
+.objectives{background:#111;border:1px solid var(--border2);border-radius:8px;padding:16px 20px;margin-bottom:20px}
+.objectives h2{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.objectives li{font-size:13px;color:#d1d5db;line-height:1.8;margin-left:18px}
 
-    .checklist { list-style: none; padding: 0; }
-    .checklist li {
-      display: flex; align-items: center; gap: 10px;
-      padding: 6px 0; border-bottom: 1px solid #1a1a1a; font-size: 13px; color: #9ca3af;
-      cursor: pointer;
-    }
-    .checklist li:hover { color: #d1d5db; }
-    .checklist li.done { color: #4ade80; text-decoration: line-through; }
-    .check-box { width: 16px; height: 16px; border: 1px solid #444; border-radius: 3px; flex-shrink: 0; }
-    .checklist li.done .check-box { background: #4ade80; border-color: #4ade80; }
+/* ── Tabs ── */
+.tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab{padding:7px 16px;border-radius:6px;font-size:13px;cursor:pointer;
+  border:1px solid var(--border2);color:var(--muted);background:transparent}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 
-    .evidence-box {
-      background: #0a0a0a; border: 1px solid #222; border-radius: 6px;
-      padding: 12px; font-family: monospace; font-size: 11px; color: #86efac;
-      white-space: pre-wrap; min-height: 80px; max-height: 300px; overflow-y: auto;
-      margin-top: 8px;
-    }
-    .tag {
-      display: inline-block; font-size: 10px; padding: 1px 8px;
-      border-radius: 10px; margin-left: 6px;
-      background: #1c1917; color: #a16207; border: 1px solid #292524;
-    }
-  </style>
+/* ── Metrics ── */
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.metric{background:#161616;border-radius:6px;padding:12px;text-align:center}
+.metric-v{font-size:22px;font-weight:700}
+.metric-l{font-size:11px;color:var(--muted);margin-top:2px}
+</style>
 </head>
 <body>
 
-<div id="timer-bar">
+<!-- HUD -->
+<div id="hud">
   <div>
-    <div class="timer-label">Incident Response Timer</div>
-    <div id="timer-display">25:00</div>
+    <div class="hud-label">Incident Response Timer</div>
+    <div id="clock">25:00</div>
   </div>
   <div style="text-align:right">
-    <div class="timer-label" style="margin-bottom:4px">IR Lab — Vercel Serverless</div>
-    <button class="secondary" onclick="resetTimer()">Reset</button>
-    <button onclick="toggleTimer()" id="toggle-btn" style="margin-left:6px">Start</button>
+    <div class="hud-label" style="margin-bottom:4px">CorpPortal — Cloud IR Lab</div>
+    <div class="hud-btns">
+      <button class="btn btn-ghost btn-sm" onclick="resetTimer()">Reset</button>
+      <button class="btn btn-primary btn-sm" id="tbtn" onclick="toggleTimer()">Start</button>
+    </div>
   </div>
 </div>
-<div id="progress-bar" style="width:100%"></div>
+<div id="pbar" style="width:100%"></div>
 
-<div class="content">
+<div class="wrap">
 
-  <!-- Incident brief -->
-  <div class="incident-banner">
-    <h1>⚠ Security Incident — Unauthorised Data Access Detected</h1>
-    <p>At 09:14 UTC, automated monitoring flagged unusual API activity on the company portal. Multiple endpoints were accessed in rapid succession from an unknown IP. You have been called in to investigate. Time is critical — the attacker may still be active.</p>
+  <!-- Tabs: Portal / IR Console -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('portal',this)">Corp Portal</div>
+    <div class="tab"        onclick="showTab('ir',this)">IR Console</div>
   </div>
 
-  <div class="brief">
-    <h2>Your objectives</h2>
-    <ul>
-      <li>Identify which endpoints were accessed and in what order</li>
-      <li>Determine what data was exposed</li>
-      <li>Identify the vulnerability that enabled the attack</li>
-      <li>Document your findings with timestamps</li>
-    </ul>
+  <!-- ══ PORTAL TAB ══ -->
+  <div id="tab-portal">
+    <div class="grid">
+
+      <!-- Login -->
+      <div class="card">
+        <div class="card-head"><h3>Login <span class="tag">POST /api/login</span></h3></div>
+        <div class="card-body">
+          <div class="field"><label>Username</label><input type="text" id="l-user" placeholder="admin"></div>
+          <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="password"></div>
+          <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
+          <p class="hint">Observe the full JSON response carefully.</p>
+          <div class="rbox" id="l-box"></div>
+        </div>
+      </div>
+
+      <!-- Register -->
+      <div class="card">
+        <div class="card-head"><h3>Register <span class="tag">POST /api/register</span></h3></div>
+        <div class="card-body">
+          <div class="field"><label>Username</label><input type="text" id="r-user" placeholder="newuser"></div>
+          <div class="field"><label>Email</label><input type="email" id="r-email" placeholder="you@example.com"></div>
+          <div class="field"><label>Password</label><input type="password" id="r-pass" placeholder="choose a password"></div>
+          <button class="btn btn-primary" onclick="doRegister()">Create account</button>
+          <p class="hint">What does the server return after registration?</p>
+          <div class="rbox" id="r-box"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Profile IDOR -->
+    <div class="card">
+      <div class="card-head"><h3>User profile lookup <span class="tag">GET /api/profile?id=</span></h3></div>
+      <div class="card-body">
+        <div class="row">
+          <input type="number" id="p-id" placeholder="User ID (try 1, 2, 3, 4)" min="1">
+          <button class="btn btn-primary" onclick="doProfile()">Fetch profile</button>
+        </div>
+        <p class="hint">No login required. Try every ID. What do you find in ID 1?</p>
+        <div class="rbox" id="p-box"></div>
+      </div>
+    </div>
+
+    <!-- Audit log endpoint -->
+    <div class="card">
+      <div class="card-head"><h3>Internal audit log <span class="tag">GET /api/audit</span></h3></div>
+      <div class="card-body">
+        <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
+        <p class="hint">This endpoint requires no authentication. What should it require?</p>
+        <div class="rbox info" id="a-box"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Task checklist -->
-  <div class="panel">
-    <div class="panel-header"><h3>Investigation Checklist</h3></div>
-    <div class="panel-body">
-      <ul class="checklist" id="checklist">
-        <li onclick="tick(this)"><div class="check-box"></div>Probe the login endpoint with test credentials</li>
-        <li onclick="tick(this)"><div class="check-box"></div>Attempt brute force — observe lack of lockout</li>
-        <li onclick="tick(this)"><div class="check-box"></div>Find and access the IDOR endpoint</li>
-        <li onclick="tick(this)"><div class="check-box"></div>Access all user IDs (1–4) via the data endpoint</li>
-        <li onclick="tick(this)"><div class="check-box"></div>Discover the exposed internal log endpoint</li>
-        <li onclick="tick(this)"><div class="check-box"></div>Collect all evidence into the evidence log below</li>
-        <li onclick="tick(this)"><div class="check-box"></div>Write a 3-sentence incident summary</li>
+  <!-- ══ IR CONSOLE TAB ══ -->
+  <div id="tab-ir" style="display:none">
+
+    <div class="alert">
+      <h1>⚠ Security Incident — Unauthorised Access Detected</h1>
+      <p>At 09:14 UTC, monitoring flagged unusual API activity on CorpPortal. Multiple endpoints accessed in rapid succession from an external IP. Credential stuffing pattern detected. You have been called in to investigate. Timer is running.</p>
+    </div>
+
+    <div class="objectives">
+      <h2>Objectives</h2>
+      <ul>
+        <li>Identify which endpoints were accessed and what data was exposed</li>
+        <li>Demonstrate the IDOR vulnerability and retrieve all user records</li>
+        <li>Find the unauthenticated audit log endpoint</li>
+        <li>Show that passwords are stored and returned in plaintext</li>
+        <li>Document findings with timestamps in the evidence log</li>
       </ul>
     </div>
-  </div>
 
-  <!-- Login tester -->
-  <div class="panel">
-    <div class="panel-header">
-      <h3>Tool 1 — Login endpoint tester <span class="tag">POST /api/login</span></h3>
+    <div class="metrics">
+      <div class="metric"><div class="metric-v" id="m-req" style="color:var(--blue)">0</div><div class="metric-l">Requests made</div></div>
+      <div class="metric"><div class="metric-v" id="m-fail" style="color:var(--red)">0</div><div class="metric-l">Failed logins</div></div>
+      <div class="metric"><div class="metric-v" id="m-idor" style="color:var(--yellow)">0</div><div class="metric-l">IDOR probes</div></div>
+      <div class="metric"><div class="metric-v" id="m-tasks" style="color:var(--green)">0/7</div><div class="metric-l">Tasks done</div></div>
     </div>
-    <div class="panel-body">
-      <input type="text"     id="username" placeholder="Username">
-      <input type="password" id="password" placeholder="Password">
-      <button onclick="tryLogin()">Send Request</button>
-      <p class="hint">Try: admin / wrong, then admin / password123. Watch the response carefully.</p>
-      <div class="response-box" id="login-response"></div>
-    </div>
-  </div>
 
-  <!-- IDOR tester -->
-  <div class="panel">
-    <div class="panel-header">
-      <h3>Tool 2 — Data endpoint <span class="tag">GET /api/data?id=</span></h3>
-    </div>
-    <div class="panel-body">
-      <div class="url-row">
-        <input type="text" id="data-id" placeholder="User ID (try 1, 2, 3, 4)">
-        <button onclick="fetchData()">Fetch</button>
+    <!-- Checklist -->
+    <div class="card">
+      <div class="card-head"><h3>Investigation checklist</h3></div>
+      <div class="card-body">
+        <ul class="checks" id="checklist">
+          <li onclick="tick(this)"><div class="cb"></div><span>Attempt login with wrong credentials — observe verbose error</span></li>
+          <li onclick="tick(this)"><div class="cb"></div><span>Attempt login 5+ times — confirm no lockout exists</span></li>
+          <li onclick="tick(this)"><div class="cb"></div><span>Successfully login as admin — read the full response</span></li>
+          <li onclick="tick(this)"><div class="cb"></div><span>Access /api/profile?id=1 through 4 without authentication</span></li>
+          <li onclick="tick(this)"><div class="cb"></div><span>Register a new account — confirm password returned in plaintext</span></li>
+          <li onclick="tick(this)"><div class="cb"></div><span>Access /api/audit without authentication</span></li>
+          <li onclick="tick(this)"><div class="cb"></div><span>Export evidence log and write 3-sentence incident summary</span></li>
+        </ul>
       </div>
-      <p class="hint">No authentication required. Try each ID and note what is returned.</p>
-      <div class="response-box" id="data-response"></div>
     </div>
-  </div>
 
-  <!-- Log endpoint -->
-  <div class="panel">
-    <div class="panel-header">
-      <h3>Tool 3 — Internal log endpoint <span class="tag">GET /api/logs</span></h3>
-    </div>
-    <div class="panel-body">
-      <button onclick="fetchLogs()">Access /api/logs</button>
-      <p class="hint">This endpoint should never be publicly accessible. What does it expose?</p>
-      <div class="response-box" id="logs-response"></div>
-    </div>
-  </div>
-
-  <!-- Evidence collector -->
-  <div class="panel">
-    <div class="panel-header">
-      <h3>Evidence Log</h3>
-    </div>
-    <div class="panel-body">
-      <div class="evidence-box" id="evidence-log"># Evidence collected during investigation
-# Format: [HH:MM:SS] FINDING — description
+    <!-- Evidence log -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Evidence log</h3>
+        <div>
+          <button class="btn btn-ghost btn-sm" onclick="clearEvidence()">Clear</button>
+          <button class="btn btn-primary btn-sm" style="margin-left:6px" onclick="exportEvidence()">Export .txt</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="ebox" id="elog"># IR Evidence Log — CorpPortal
+# Start the timer and begin your investigation
+# All API interactions are automatically recorded here
 </div>
-      <button onclick="clearEvidence()" class="secondary" style="margin-top:8px">Clear</button>
-      <button onclick="exportEvidence()" style="margin-left:8px;margin-top:8px">Export</button>
+      </div>
     </div>
-  </div>
 
+  </div>
 </div>
 
 <script>
-  // Timer
-  const DURATION = 25 * 60;
-  let remaining = DURATION, running = false, interval = null;
+// ── Timer ──────────────────────────────────────
+const TOTAL = 25*60;
+let remaining = TOTAL, running = false, iv = null;
+function pad(n){return String(n).padStart(2,'0')}
+function drawTimer(){
+  const m=Math.floor(remaining/60),s=remaining%60;
+  const el=document.getElementById('clock');
+  el.textContent=pad(m)+':'+pad(s);
+  el.className=remaining<300?'crit':remaining<600?'warn':'';
+  const pct=(remaining/TOTAL)*100;
+  const pb=document.getElementById('pbar');
+  pb.style.width=pct+'%';
+  pb.style.background=remaining<300?'#f87171':remaining<600?'#facc15':'#4ade80';
+}
+function toggleTimer(){
+  running=!running;
+  document.getElementById('tbtn').textContent=running?'Pause':'Resume';
+  if(running){iv=setInterval(()=>{if(remaining>0){remaining--;drawTimer();}else{clearInterval(iv);running=false;document.getElementById('tbtn').textContent='Start';}},1000);}
+  else clearInterval(iv);
+}
+function resetTimer(){clearInterval(iv);running=false;remaining=TOTAL;document.getElementById('tbtn').textContent='Start';drawTimer();}
+drawTimer();
 
-  function pad(n) { return String(n).padStart(2,'0'); }
-  function updateDisplay() {
-    const m = Math.floor(remaining/60), s = remaining%60;
-    const el = document.getElementById('timer-display');
-    el.textContent = pad(m)+':'+pad(s);
-    el.className = remaining < 300 ? 'danger' : remaining < 600 ? 'warning' : '';
-    const pct = (remaining/DURATION)*100;
-    const pb = document.getElementById('progress-bar');
-    pb.style.width = pct+'%';
-    pb.style.background = remaining < 300 ? '#f87171' : remaining < 600 ? '#facc15' : '#4ade80';
-  }
-  function toggleTimer() {
-    running = !running;
-    document.getElementById('toggle-btn').textContent = running ? 'Pause' : 'Resume';
-    if (running) {
-      interval = setInterval(() => {
-        if (remaining > 0) { remaining--; updateDisplay(); }
-        else { clearInterval(interval); running = false; document.getElementById('toggle-btn').textContent = 'Start'; }
-      }, 1000);
-    } else { clearInterval(interval); }
-  }
-  function resetTimer() {
-    clearInterval(interval); running = false; remaining = DURATION;
-    document.getElementById('toggle-btn').textContent = 'Start';
-    updateDisplay();
-  }
-  updateDisplay();
+// ── Tabs ───────────────────────────────────────
+function showTab(name,el){
+  document.getElementById('tab-portal').style.display=name==='portal'?'':'none';
+  document.getElementById('tab-ir').style.display=name==='ir'?'':'none';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
 
-  // Checklist
-  function tick(li) {
-    li.classList.toggle('done');
-    addEvidence('TASK ' + (li.classList.contains('done') ? 'COMPLETE' : 'UNDONE'), li.querySelector('div + *').textContent.trim().substring(0,60));
-  }
+// ── Metrics ───────────────────────────────────
+let counts={req:0,fail:0,idor:0,tasks:0};
+function bump(k){counts[k]++;document.getElementById('m-'+k).textContent=counts[k];}
+function updateTasks(){document.getElementById('m-tasks').textContent=counts.tasks+'/7';}
 
-  // Evidence log
-  function addEvidence(type, detail) {
-    const now = new Date();
-    const ts = [now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
-    const box = document.getElementById('evidence-log');
-    box.textContent += `\n[${ts}] ${type} — ${detail}`;
-    box.scrollTop = box.scrollHeight;
-  }
-  function clearEvidence() { document.getElementById('evidence-log').textContent = '# Evidence collected during investigation\n'; }
-  function exportEvidence() {
-    const blob = new Blob([document.getElementById('evidence-log').textContent], {type:'text/plain'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'ir-evidence-'+Date.now()+'.txt'; a.click();
-  }
+// ── Evidence ──────────────────────────────────
+function addEvidence(type,detail){
+  const now=new Date();
+  const ts=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  const box=document.getElementById('elog');
+  box.textContent+=`\n[${ts}] ${type}\n         ${detail}`;
+  box.scrollTop=box.scrollHeight;
+  bump('req');
+}
+function clearEvidence(){document.getElementById('elog').textContent='# IR Evidence Log — CorpPortal\n';}
+function exportEvidence(){
+  const blob=new Blob([document.getElementById('elog').textContent],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='ir-evidence-'+Date.now()+'.txt';a.click();
+}
 
-  // API calls
-  async function tryLogin() {
-    const u = document.getElementById('username').value;
-    const p = document.getElementById('password').value;
-    const box = document.getElementById('login-response');
-    box.style.display = 'block';
-    box.textContent = 'Sending...';
-    try {
-      const r = await fetch('/api/login', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({username:u, password:p})
-      });
-      const data = await r.json();
-      const out = `HTTP ${r.status}\n${JSON.stringify(data, null, 2)}`;
-      box.textContent = out;
-      box.className = 'response-box' + (r.ok ? '' : ' error');
-      addEvidence('LOGIN ATTEMPT', `user=${u} status=${r.status} response=${JSON.stringify(data).substring(0,80)}`);
-    } catch(e) { box.textContent = 'Error: '+e.message; box.className='response-box error'; }
-  }
+// ── Checklist ─────────────────────────────────
+function tick(li){
+  const wasDone=li.classList.contains('done');
+  li.classList.toggle('done');
+  if(!wasDone){counts.tasks++;addEvidence('TASK COMPLETE',li.querySelector('span').textContent);}
+  else counts.tasks--;
+  updateTasks();
+}
 
-  async function fetchData() {
-    const id = document.getElementById('data-id').value;
-    const box = document.getElementById('data-response');
-    box.style.display = 'block';
-    box.textContent = 'Fetching...';
-    try {
-      const r = await fetch('/api/data?id='+encodeURIComponent(id));
-      const data = await r.json();
-      box.textContent = `HTTP ${r.status}\n${JSON.stringify(data, null, 2)}`;
-      box.className = 'response-box' + (r.ok ? '' : ' error');
-      addEvidence('IDOR PROBE', `id=${id} status=${r.status} data=${JSON.stringify(data).substring(0,100)}`);
-    } catch(e) { box.textContent = 'Error: '+e.message; box.className='response-box error'; }
-  }
+// ── API helpers ───────────────────────────────
+function show(id,text,isErr){
+  const b=document.getElementById(id);
+  b.style.display='block';b.textContent=text;
+  b.className='rbox'+(isErr?' err':b.className.includes('info')?' info':'');
+}
 
-  async function fetchLogs() {
-    const box = document.getElementById('logs-response');
-    box.style.display = 'block';
-    box.textContent = 'Fetching...';
-    try {
-      const r = await fetch('/api/logs');
-      const data = await r.json();
-      box.textContent = `HTTP ${r.status}\n${JSON.stringify(data, null, 2)}`;
-      box.className = 'response-box';
-      addEvidence('LOG ENDPOINT', `Accessed /api/logs — status=${r.status} env=${JSON.stringify(data.env)}`);
-    } catch(e) { box.textContent = 'Error: '+e.message; box.className='response-box error'; }
-  }
+async function doLogin(){
+  const u=document.getElementById('l-user').value;
+  const p=document.getElementById('l-pass').value;
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    const d=await r.json();
+    show('l-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
+    if(!r.ok){bump('fail');addEvidence('LOGIN FAIL','user='+u+' status='+r.status+' error='+d.error);}
+    else addEvidence('LOGIN SUCCESS','user='+u+' role='+d.user?.role+' token='+d.token+'\n         debug_secret='+d.debug?.sessionSecret);
+  }catch(e){show('l-box','Error: '+e.message,true);}
+}
+
+async function doRegister(){
+  const u=document.getElementById('r-user').value;
+  const e=document.getElementById('r-email').value;
+  const p=document.getElementById('r-pass').value;
+  try{
+    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,email:e,password:p})});
+    const d=await r.json();
+    show('r-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
+    addEvidence('REGISTER','user='+u+' status='+r.status+' password_in_response='+d.user?.password);
+  }catch(e){show('r-box','Error: '+e.message,true);}
+}
+
+async function doProfile(){
+  const id=document.getElementById('p-id').value;
+  try{
+    const r=await fetch('/api/profile?id='+encodeURIComponent(id));
+    const d=await r.json();
+    show('p-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
+    if(r.ok){bump('idor');addEvidence('IDOR PROBE','id='+id+' user='+d.username+' password='+d.password+' salary='+d.salary);}
+  }catch(e){show('p-box','Error: '+e.message,true);}
+}
+
+async function doAudit(){
+  try{
+    const r=await fetch('/api/audit');
+    const d=await r.json();
+    show('a-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),false);
+    addEvidence('AUDIT LOG ACCESSED','No auth required. '+d.total+' entries returned. Full session history exposed.');
+  }catch(e){show('a-box','Error: '+e.message,true);}
+}
 </script>
 </body>
 </html>
