@@ -68,6 +68,15 @@ input:focus{outline:none;border-color:#555}
 .metric{background:#161616;border-radius:6px;padding:12px;text-align:center}
 .metric-v{font-size:22px;font-weight:700}
 .metric-l{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ── Log viewer ── */
+.log-viewer{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:12px;margin-top:15px}
+.log-entry{font-family:monospace;font-size:10px;padding:6px;border-bottom:1px solid #1a1a1a;color:#9ca3af}
+.log-entry:hover{background:#1a1a1a}
+.log-timestamp{color:var(--green)}
+.log-warning{color:var(--yellow)}
+.log-critical{color:var(--red)}
+.buffer-warning{background:#7f1d1d;color:#fca5a5;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:bold}
 </style>
 </head>
 <body>
@@ -89,17 +98,15 @@ input:focus{outline:none;border-color:#555}
 <div id="pbar" style="width:100%"></div>
 
 <div class="wrap">
-  <!-- Dynamic content based on login state -->
-  <div id="app-view">
-    <!-- Login form will be shown here by default -->
-  </div>
+  <div id="app-view"></div>
 </div>
 
 <script>
 // ── Timer ──────────────────────────────────────
 const TOTAL = 25*60;
 let remaining = TOTAL, running = false, iv = null;
-let currentUser = null; // Store logged in user
+let currentUser = null;
+let serverLogs = [];
 
 function pad(n){return String(n).padStart(2,'0')}
 function drawTimer(){
@@ -121,7 +128,7 @@ function toggleTimer(){
 function resetTimer(){clearInterval(iv);running=false;remaining=TOTAL;document.getElementById('tbtn').textContent='Start';drawTimer();}
 drawTimer();
 
-// ── Evidence ──────────────────────────────────
+// ── Evidence & Metrics ──
 let evidenceLog = [];
 let metrics = {req:0,fail:0,idor:0};
 
@@ -159,31 +166,103 @@ function exportEvidence(){
   a.download='ir-evidence-'+Date.now()+'.txt';a.click();
 }
 
-// ── API helpers ───────────────────────────────
-function show(id,text,isErr){
-  const b=document.getElementById(id);
-  if(!b) return;
-  b.style.display='block';b.textContent=text;
-  b.className='rbox'+(isErr?' err':b.className.includes('info')?' info':'');
+// ── Fetch and display server logs ──
+async function fetchServerLogs(){
+  try{
+    const r = await fetch('/api/audit');
+    const d = await r.json();
+    serverLogs = d.log || [];
+    displayServerLogs();
+    addEvidence('LOGS FETCHED', `Retrieved ${serverLogs.length} log entries from server`);
+  } catch(e){
+    console.error('Failed to fetch logs:', e);
+  }
 }
 
+function displayServerLogs(){
+  const container = document.getElementById('server-logs-container');
+  if(!container) return;
+  
+  if(serverLogs.length === 0){
+    container.innerHTML = '<div class="log-entry">⚠️ No logs found. Logs may have been discarded by Vercel.</div>';
+    return;
+  }
+  
+  container.innerHTML = serverLogs.map(log => {
+    let logClass = '';
+    if(log.type === 'BUFFER_OVERFLOW_ATTEMPT') logClass = 'log-critical';
+    else if(log.type === 'LOGIN_SUCCESS' && log.detail?.auth_bypass) logClass = 'log-warning';
+    return `<div class="log-entry ${logClass}">
+      <span class="log-timestamp">[${new Date(log.ts).toLocaleTimeString()}]</span>
+      <span><strong>${log.type}</strong></span>
+      <span style="color:#6b7280">- ${JSON.stringify(log.detail)}</span>
+      <span style="color:#4b5563; font-size:9px"> (IP: ${log.ip})</span>
+    </div>`;
+  }).join('');
+  
+  const warning = document.getElementById('log-volatility-warning');
+  if(warning) warning.style.display = 'block';
+}
+
+// ── Buffer Overflow String Generator ──
+function getBufferOverflowString() {
+  // Realistic buffer overflow payload
+  // This simulates a classic stack-based buffer overflow
+  const nops = '\\x90'.repeat(1000); // NOP sled
+  const shellcode = '\\x31\\xc0\\x50\\x68\\x2f\\x2f\\x73\\x68\\x68\\x2f\\x62\\x69\\x6e\\x89\\xe3\\x50\\x53\\x89\\xe1\\xb0\\x0b\\xcd\\x80'; // Linux execve shellcode
+  const retAddr = '\\x41\\x42\\x43\\x44'.repeat(50); // Return address overwrite attempt
+  const padding = 'A'.repeat(5000); // Buffer padding
+  
+  // Combine to create attack payload
+  return padding + nops + shellcode + retAddr;
+}
+
+// ── Check for buffer overflow in password ──
+function isBufferOverflowAttempt(password) {
+  return password && (
+    password.length > 1000 || 
+    password.includes('\\x90') || 
+    password.includes('A'.repeat(100))
+  );
+}
+
+// ── API calls ──
 async function doLogin(){
-  const u=document.getElementById('l-user').value;
-  const p=document.getElementById('l-pass').value;
+  const username = document.getElementById('l-user').value;
+  const password = document.getElementById('l-pass').value;
+  
+  // Check if this is a buffer overflow attempt
+  const isOverflow = isBufferOverflowAttempt(password);
+  
   try{
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    const r=await fetch('/api/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username, password})
+    });
     const d=await r.json();
-    show('l-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
+    
+    // Customize response display based on attack type
+    let responseText = `HTTP ${r.status}\n${JSON.stringify(d,null,2)}`;
+    if(isOverflow){
+      responseText = `🔴🔴🔴 BUFFER OVERFLOW ATTEMPT DETECTED 🔴🔴🔴\n\nPassword Length: ${password.length} bytes\nPattern: ${password.substring(0,100)}...\n\n${responseText}`;
+    }
+    
+    show('l-box', responseText, !r.ok);
+    
     if(!r.ok){
       metrics.fail++;
       updateMetrics();
-      addEvidence('LOGIN FAIL','user='+u+' status='+r.status+' error='+d.error);
+      addEvidence('LOGIN FAIL', `user=${username} status=${r.status} error=${d.error}${isOverflow ? ' [BUFFER OVERFLOW ATTEMPT]' : ''}`);
     } else {
       currentUser = d.user;
-      addEvidence('LOGIN SUCCESS','user='+u+' role='+d.user?.role);
-      renderAppView(); // Switch to admin panel if admin
+      const overflowNote = isOverflow ? ' (Successful login via buffer overflow string!)' : '';
+      addEvidence('LOGIN SUCCESS', `user=${username} role=${d.user?.role} password_bypass=true${overflowNote}`);
+      renderAppView();
     }
-  }catch(e){show('l-box','Error: '+e.message,true);}
+  }catch(e){
+    show('l-box','Error: '+e.message,true);
+  }
 }
 
 async function doRegister(){
@@ -198,65 +277,61 @@ async function doRegister(){
   }catch(e){show('r-box','Error: '+e.message,true);}
 }
 
-async function doProfile(){
-  const id=document.getElementById('p-id').value;
+async function doProfile(id){
   try{
     const r=await fetch('/api/profile?id='+encodeURIComponent(id));
     const d=await r.json();
-    show('p-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
+    if(document.getElementById('p-box')) show('p-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
+    if(document.getElementById('admin-result')){
+      const box = document.getElementById('admin-result');
+      box.style.display = 'block';
+      box.textContent = JSON.stringify(d, null, 2);
+    }
     if(r.ok){
       metrics.idor++;
       updateMetrics();
-      addEvidence('IDOR PROBE','id='+id+' user='+d.username+' password='+d.password+' salary='+d.salary);
+      addEvidence('IDOR PROBE','id='+id+' user='+d.username+' password='+d.password);
     }
-  }catch(e){show('p-box','Error: '+e.message,true);}
+  }catch(e){
+    if(document.getElementById('p-box')) show('p-box','Error: '+e.message,true);
+    else alert('Error: '+e.message);
+  }
 }
 
 async function doAudit(){
   try{
     const r=await fetch('/api/audit');
     const d=await r.json();
-    show('a-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),false);
+    if(document.getElementById('a-box')) show('a-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),false);
     addEvidence('AUDIT LOG ACCESSED','No auth required. '+d.total+' entries returned.');
-  }catch(e){show('a-box','Error: '+e.message,true);}
-}
-
-// ── Vulnerability Demo: No Password Login ──
-async function demoNoPasswordLogin(){
-  const username = document.getElementById('demo-user').value;
-  if(!username){
-    alert('Enter a username first');
-    return;
+  }catch(e){
+    if(document.getElementById('a-box')) show('a-box','Error: '+e.message,true);
   }
-  try{
-    // Demonstrating that ANY password works due to backend vulnerability
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,password:'anything_works'})});
-    const d=await r.json();
-    show('demo-box','HTTP '+r.status+'\n🔴 VULNERABILITY DEMO: Login succeeded with fake password!\n\n'+JSON.stringify(d,null,2),false);
-    if(r.ok){
-      currentUser = d.user;
-      addEvidence('NO PASSWORD LOGIN','Logged in as '+username+' without valid password');
-      renderAppView();
-    }
-  }catch(e){show('demo-box','Error: '+e.message,true);}
 }
 
 // ── Admin User Lookup ──
-async function adminLookup(){
+function adminLookup(){
   const userId = document.getElementById('admin-user-id').value;
   if(!userId){
     alert('Enter a user ID');
     return;
   }
-  try{
-    const r=await fetch('/api/profile?id='+encodeURIComponent(userId));
-    const d=await r.json();
-    const resultBox = document.getElementById('admin-result');
-    resultBox.style.display = 'block';
-    resultBox.textContent = JSON.stringify(d, null, 2);
-    addEvidence('ADMIN LOOKUP','Admin viewed user ID '+userId);
-  }catch(e){
-    alert('Error: '+e.message);
+  doProfile(userId);
+}
+
+// ── Quick fill buffer overflow (for demo) ──
+function fillBufferOverflow(){
+  const overflowStr = getBufferOverflowString();
+  const passwordField = document.getElementById('l-pass');
+  if(passwordField){
+    passwordField.value = overflowStr;
+    // Show warning that buffer overflow string was inserted
+    const warningSpan = document.getElementById('buffer-warning');
+    if(warningSpan) warningSpan.style.display = 'inline-block';
+    setTimeout(() => {
+      if(warningSpan) warningSpan.style.display = 'none';
+    }, 3000);
+    addEvidence('BUFFER OVERFLOW STRING GENERATED', `Created ${overflowStr.length} byte attack payload`);
   }
 }
 
@@ -265,12 +340,24 @@ function renderLoginView(){
   return `
     <div style="max-width:500px;margin:0 auto">
       <div class="card">
-        <div class="card-head"><h3>Login <span class="tag">POST /api/login</span></h3></div>
+        <div class="card-head">
+          <h3>Login <span class="tag">POST /api/login</span></h3>
+          <button class="btn btn-danger btn-sm" onclick="fillBufferOverflow()">💣 Test Buffer Overflow</button>
+        </div>
         <div class="card-body">
-          <div class="field"><label>Username</label><input type="text" id="l-user" placeholder="admin"></div>
-          <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="password"></div>
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="l-user" placeholder="admin">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="l-pass" placeholder="password or buffer overflow string">
+            <span id="buffer-warning" class="buffer-warning" style="display:none; margin-top:5px">⚠️ Buffer overflow string loaded (${getBufferOverflowString().length} bytes)</span>
+          </div>
           <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
-          <p class="hint">Observe the full JSON response carefully.</p>
+          <p class="hint">
+            🔴 <strong>VULNERABILITY DEMO:</strong> Try clicking "Test Buffer Overflow" then login - the server accepts ANY password including malicious payloads!
+          </p>
           <div class="rbox" id="l-box"></div>
         </div>
       </div>
@@ -288,23 +375,11 @@ function renderLoginView(){
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>🔴 VULNERABILITY DEMO: Login Without Password</h3></div>
-        <div class="card-body">
-          <div class="row">
-            <input type="text" id="demo-user" placeholder="Enter any username (e.g., admin)" style="flex:1">
-            <button class="btn btn-danger" onclick="demoNoPasswordLogin()">Try Login (Any Password)</button>
-          </div>
-          <p class="hint">This demonstrates a critical authentication bypass vulnerability.</p>
-          <div class="rbox info" id="demo-box"></div>
-        </div>
-      </div>
-
-      <div class="card">
         <div class="card-head"><h3>User profile lookup (IDOR Demo) <span class="tag">GET /api/profile?id=</span></h3></div>
         <div class="card-body">
           <div class="row">
             <input type="number" id="p-id" placeholder="User ID (1,2,3,4)" min="1">
-            <button class="btn btn-primary" onclick="doProfile()">Fetch profile</button>
+            <button class="btn btn-primary" onclick="doProfile(document.getElementById('p-id').value)">Fetch profile</button>
           </div>
           <p class="hint">No login required. Try ID 4 for a surprise!</p>
           <div class="rbox" id="p-box"></div>
@@ -325,7 +400,7 @@ function renderLoginView(){
 
 function renderAdminView(){
   return `
-    <div style="max-width:700px;margin:0 auto">
+    <div style="max-width:800px;margin:0 auto">
       <div class="card" style="border-color:var(--green)">
         <div class="card-head" style="background:rgba(74,222,128,0.1)">
           <h3>👑 Admin Dashboard - User Management</h3>
@@ -333,14 +408,14 @@ function renderAdminView(){
         </div>
         <div class="card-body">
           <div class="field">
-            <label>🔍 User Lookup (IDOR still works here)</label>
+            <label>🔍 User Lookup (IDOR Demo)</label>
             <div class="row">
               <input type="number" id="admin-user-id" placeholder="Enter User ID (1-4)" min="1" max="4">
               <button class="btn btn-primary" onclick="adminLookup()">Lookup User</button>
             </div>
           </div>
           <div class="rbox" id="admin-result" style="display:none; margin-top:15px"></div>
-          <p class="hint">⚠️ Notice: Even as admin, the same IDOR vulnerability exists.</p>
+          <p class="hint">⚠️ Even as admin, the same IDOR vulnerability exists - demonstrating broken access control.</p>
         </div>
       </div>
 
@@ -365,6 +440,24 @@ function renderAdminView(){
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-head"><h3>📜 Server Logs (Vercel - Volatile)</h3></div>
+        <div class="card-body">
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+            <button class="btn btn-primary btn-sm" onclick="fetchServerLogs()">🔄 Refresh Logs</button>
+            <span class="tag" style="background:#7f1d1d; color:#fca5a5">⚠️ Logs are ephemeral</span>
+          </div>
+          <div id="log-volatility-warning" style="display:none; background:#1c0a0a; border:1px solid #7f1d1d; border-radius:6px; padding:10px; margin-bottom:10px">
+            <span style="color:var(--yellow)">⚠️ VERCEL SERVERLESS ENVIRONMENT:</span>
+            <span style="color:#9ca3af; font-size:12px"> Logs are stored in-memory and WILL BE DISCARDED when the serverless function cold-starts. This demonstrates why incident response must happen IMMEDIATELY.</span>
+          </div>
+          <div id="server-logs-container" class="log-viewer" style="max-height:400px; overflow-y:auto">
+            <div class="log-entry">Click "Refresh Logs" to fetch current server logs</div>
+          </div>
+          <p class="hint" style="margin-top:10px">🔴 In serverless environments (Vercel, AWS Lambda), logs are volatile. If you wait too long, evidence disappears!</p>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -375,6 +468,7 @@ function renderAppView(){
     appDiv.innerHTML = renderAdminView();
     updateMetrics();
     updateEvidenceDisplay();
+    fetchServerLogs();
   } else {
     appDiv.innerHTML = renderLoginView();
   }
@@ -385,7 +479,6 @@ function logout(){
   renderAppView();
 }
 
-// Initial render
 renderAppView();
 </script>
 </body>
