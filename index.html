@@ -295,9 +295,11 @@ async function simulateFullAttack() {
   addEvidence('🚨 ATTACK STARTED', 'Malware simulation triggered');
   
   const resultBox = document.getElementById('attack-result');
-  resultBox.style.display = 'block';
-  resultBox.innerHTML = '🚨 Executing attack simulation...<br>This may take a moment...';
-  resultBox.className = 'rbox info';
+  if (resultBox) {
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = '🚨 Executing attack simulation...<br>This may take a moment...';
+    resultBox.className = 'rbox info';
+  }
   
   try {
     const response = await fetch('/api/attack', {
@@ -342,18 +344,22 @@ async function simulateFullAttack() {
     }
     
     html += '</div>';
-    resultBox.innerHTML = html;
+    if (resultBox) resultBox.innerHTML = html;
     
     var compromisedCount = (data.attack_summary && data.attack_summary.data_stolen && data.attack_summary.data_stolen.users_compromised) ? data.attack_summary.data_stolen.users_compromised : 'Multiple';
     addEvidence('✅ ATTACK COMPLETE', 'Full attack executed. ' + compromisedCount + ' users compromised, backdoor created.');
     
     setTimeout(function() {
-      fetchServerLogs();
+      if (currentUser && currentUser.role === 'admin') {
+        fetchServerLogs();
+      }
     }, 1000);
     
   } catch (error) {
-    resultBox.innerHTML = '❌ Error: ' + error.message;
-    resultBox.className = 'rbox err';
+    if (resultBox) {
+      resultBox.innerHTML = '❌ Error: ' + error.message;
+      resultBox.className = 'rbox err';
+    }
   }
 }
 
@@ -406,7 +412,25 @@ async function fetchServerLogs() {
 // ========== RENDER VIEWS ==========
 function renderLoginView() {
   return `
-    <div style="max-width:500px;margin:0 auto">
+    <div style="max-width:600px;margin:0 auto">
+      <!-- Attack Simulation Card - TOP of Login Page -->
+      <div class="card" style="border-color: #dc2626; margin-bottom: 20px;">
+        <div class="card-head" style="background: rgba(220, 38, 38, 0.2);">
+          <h3 style="color: #fca5a5;">🚨 MALWARE SIMULATION - Click to see attack in action</h3>
+        </div>
+        <div class="card-body">
+          <p style="color: #fca5a5; margin-bottom: 15px; font-size: 14px;">
+            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities. Click it to see the attack in action!
+          </p>
+          
+          <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626; padding: 12px; font-size: 16px; font-weight: bold;">
+            💣 SIMULATE FULL ATTACK
+          </button>
+          
+          <div id="attack-result" class="rbox" style="display: none; margin-top: 15px;"></div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head"><h3>Login</h3></div>
         <div class="card-body">
@@ -435,24 +459,6 @@ function renderLoginView() {
 function renderAdminView() {
   return `
     <div>
-      <!-- Attack Simulation Card - TOP -->
-      <div class="card" style="border-color: #dc2626; margin-bottom: 20px;">
-        <div class="card-head" style="background: rgba(220, 38, 38, 0.2);">
-          <h3 style="color: #fca5a5;">🚨 MALWARE SIMULATION - Click to see attack in action</h3>
-        </div>
-        <div class="card-body">
-          <p style="color: #fca5a5; margin-bottom: 15px; font-size: 14px;">
-            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities. Click it
-          </p>
-          
-          <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626; padding: 12px; font-size: 16px; font-weight: bold;">
-            💣 SIMULATE FULL ATTACK
-          </button>
-          
-          <div id="attack-result" class="rbox" style="display: none; margin-top: 15px;"></div>
-        </div>
-      </div>
-
       <div class="card" style="border-color:#4ade80">
         <div class="card-head">
           <h3>Admin Dashboard</h3>
