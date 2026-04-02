@@ -26,8 +26,6 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 
 /* ── Layout ── */
 .wrap{max-width:900px;margin:0 auto;padding:74px 20px 40px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:640px){.grid{grid-template-columns:1fr}}
 
 /* ── Cards ── */
 .card{background:var(--surface);border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:16px}
@@ -65,28 +63,6 @@ input:focus{outline:none;border-color:#555}
   padding:11px;font-family:monospace;font-size:11px;color:var(--green);
   white-space:pre-wrap;min-height:100px;max-height:320px;overflow-y:auto}
 
-/* ── Checklist ── */
-.checks{list-style:none}
-.checks li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;
-  border-bottom:1px solid #1a1a1a;font-size:13px;color:var(--muted);cursor:pointer}
-.checks li:hover{color:var(--text)}.checks li.done{color:var(--green);text-decoration:line-through}
-.cb{width:15px;height:15px;border:1px solid #444;border-radius:3px;flex-shrink:0;margin-top:1px}
-.checks li.done .cb{background:var(--green);border-color:var(--green)}
-
-/* ── Incident banner ── */
-.alert{background:#1c0a0a;border:1px solid #7f1d1d;border-radius:8px;padding:18px 22px;margin-bottom:20px}
-.alert h1{color:#fca5a5;font-size:17px;margin-bottom:6px}
-.alert p{color:#9ca3af;font-size:13px;line-height:1.6}
-.objectives{background:#111;border:1px solid var(--border2);border-radius:8px;padding:16px 20px;margin-bottom:20px}
-.objectives h2{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
-.objectives li{font-size:13px;color:#d1d5db;line-height:1.8;margin-left:18px}
-
-/* ── Tabs ── */
-.tabs{display:flex;gap:4px;margin-bottom:16px}
-.tab{padding:7px 16px;border-radius:6px;font-size:13px;cursor:pointer;
-  border:1px solid var(--border2);color:var(--muted);background:transparent}
-.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-
 /* ── Metrics ── */
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
 .metric{background:#161616;border-radius:6px;padding:12px;text-align:center}
@@ -113,127 +89,9 @@ input:focus{outline:none;border-color:#555}
 <div id="pbar" style="width:100%"></div>
 
 <div class="wrap">
-
-  <!-- Tabs: Portal / IR Console -->
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('portal',this)">QA Vercel</div>
-    <div class="tab"        onclick="showTab('ir',this)">IR Console</div>
-  </div>
-
-  <!-- ══ PORTAL TAB ══ -->
-  <div id="tab-portal">
-    <div class="grid">
-
-      <!-- Login -->
-      <div class="card">
-        <div class="card-head"><h3>Login <span class="tag">POST /api/login</span></h3></div>
-        <div class="card-body">
-          <div class="field"><label>Username</label><input type="text" id="l-user" placeholder="admin"></div>
-          <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="password"></div>
-          <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
-          <p class="hint">Observe the full JSON response carefully.</p>
-          <div class="rbox" id="l-box"></div>
-        </div>
-      </div>
-
-      <!-- Register -->
-      <div class="card">
-        <div class="card-head"><h3>Register <span class="tag">POST /api/register</span></h3></div>
-        <div class="card-body">
-          <div class="field"><label>Username</label><input type="text" id="r-user" placeholder="newuser"></div>
-          <div class="field"><label>Email</label><input type="email" id="r-email" placeholder="you@example.com"></div>
-          <div class="field"><label>Password</label><input type="password" id="r-pass" placeholder="choose a password"></div>
-          <button class="btn btn-primary" onclick="doRegister()">Create account</button>
-          <p class="hint">What does the server return after registration?</p>
-          <div class="rbox" id="r-box"></div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Profile IDOR -->
-    <div class="card">
-      <div class="card-head"><h3>User profile lookup <span class="tag">GET /api/profile?id=</span></h3></div>
-      <div class="card-body">
-        <div class="row">
-          <input type="number" id="p-id" placeholder="User ID (try 1, 2, 3, 4)" min="1">
-          <button class="btn btn-primary" onclick="doProfile()">Fetch profile</button>
-        </div>
-        <p class="hint">No login required. Try every ID. What do you find in ID 1?</p>
-        <div class="rbox" id="p-box"></div>
-      </div>
-    </div>
-
-    <!-- Audit log endpoint -->
-    <div class="card">
-      <div class="card-head"><h3>Internal audit log <span class="tag">GET /api/audit</span></h3></div>
-      <div class="card-body">
-        <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
-        <p class="hint">This endpoint requires no authentication. What should it require?</p>
-        <div class="rbox info" id="a-box"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ IR CONSOLE TAB ══ -->
-  <div id="tab-ir" style="display:none">
-
-    <div class="alert">
-      <h1>⚠ Security Incident — Unauthorised Access Detected</h1>
-      <p>At 09:14 UTC, monitoring flagged unusual API activity on CorpPortal. Multiple endpoints accessed in rapid succession from an external IP. Credential stuffing pattern detected. You have been called in to investigate. Timer is running.</p>
-    </div>
-
-    <div class="objectives">
-      <h2>Objectives</h2>
-      <ul>
-        <li>Identify which endpoints were accessed and what data was exposed</li>
-        <li>Demonstrate the IDOR vulnerability and retrieve all user records</li>
-        <li>Find the unauthenticated audit log endpoint</li>
-        <li>Show that passwords are stored and returned in plaintext</li>
-        <li>Document findings with timestamps in the evidence log</li>
-      </ul>
-    </div>
-
-    <div class="metrics">
-      <div class="metric"><div class="metric-v" id="m-req" style="color:var(--blue)">0</div><div class="metric-l">Requests made</div></div>
-      <div class="metric"><div class="metric-v" id="m-fail" style="color:var(--red)">0</div><div class="metric-l">Failed logins</div></div>
-      <div class="metric"><div class="metric-v" id="m-idor" style="color:var(--yellow)">0</div><div class="metric-l">IDOR probes</div></div>
-      <div class="metric"><div class="metric-v" id="m-tasks" style="color:var(--green)">0/7</div><div class="metric-l">Tasks done</div></div>
-    </div>
-
-    <!-- Checklist -->
-    <div class="card">
-      <div class="card-head"><h3>Investigation checklist</h3></div>
-      <div class="card-body">
-        <ul class="checks" id="checklist">
-          <li onclick="tick(this)"><div class="cb"></div><span>Attempt login with wrong credentials — observe verbose error</span></li>
-          <li onclick="tick(this)"><div class="cb"></div><span>Attempt login 5+ times — confirm no lockout exists</span></li>
-          <li onclick="tick(this)"><div class="cb"></div><span>Successfully login as admin — read the full response</span></li>
-          <li onclick="tick(this)"><div class="cb"></div><span>Access /api/profile?id=1 through 4 without authentication</span></li>
-          <li onclick="tick(this)"><div class="cb"></div><span>Register a new account — confirm password returned in plaintext</span></li>
-          <li onclick="tick(this)"><div class="cb"></div><span>Access /api/audit without authentication</span></li>
-          <li onclick="tick(this)"><div class="cb"></div><span>Export evidence log and write 3-sentence incident summary</span></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Evidence log -->
-    <div class="card">
-      <div class="card-head">
-        <h3>Evidence log</h3>
-        <div>
-          <button class="btn btn-ghost btn-sm" onclick="clearEvidence()">Clear</button>
-          <button class="btn btn-primary btn-sm" style="margin-left:6px" onclick="exportEvidence()">Export .txt</button>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="ebox" id="elog"># IR Evidence Log — CorpPortal
-# Start the timer and begin your investigation
-# All API interactions are automatically recorded here
-</div>
-      </div>
-    </div>
-
+  <!-- Dynamic content based on login state -->
+  <div id="app-view">
+    <!-- Login form will be shown here by default -->
   </div>
 </div>
 
@@ -241,6 +99,8 @@ input:focus{outline:none;border-color:#555}
 // ── Timer ──────────────────────────────────────
 const TOTAL = 25*60;
 let remaining = TOTAL, running = false, iv = null;
+let currentUser = null; // Store logged in user
+
 function pad(n){return String(n).padStart(2,'0')}
 function drawTimer(){
   const m=Math.floor(remaining/60),s=remaining%60;
@@ -261,47 +121,48 @@ function toggleTimer(){
 function resetTimer(){clearInterval(iv);running=false;remaining=TOTAL;document.getElementById('tbtn').textContent='Start';drawTimer();}
 drawTimer();
 
-// ── Tabs ───────────────────────────────────────
-function showTab(name,el){
-  document.getElementById('tab-portal').style.display=name==='portal'?'':'none';
-  document.getElementById('tab-ir').style.display=name==='ir'?'':'none';
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-}
-
-// ── Metrics ───────────────────────────────────
-let counts={req:0,fail:0,idor:0,tasks:0};
-function bump(k){counts[k]++;document.getElementById('m-'+k).textContent=counts[k];}
-function updateTasks(){document.getElementById('m-tasks').textContent=counts.tasks+'/7';}
-
 // ── Evidence ──────────────────────────────────
+let evidenceLog = [];
+let metrics = {req:0,fail:0,idor:0};
+
 function addEvidence(type,detail){
   const now=new Date();
   const ts=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
-  const box=document.getElementById('elog');
-  box.textContent+=`\n[${ts}] ${type}\n         ${detail}`;
-  box.scrollTop=box.scrollHeight;
-  bump('req');
-}
-function clearEvidence(){document.getElementById('elog').textContent='# IR Evidence Log — CorpPortal\n';}
-function exportEvidence(){
-  const blob=new Blob([document.getElementById('elog').textContent],{type:'text/plain'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='ir-evidence-'+Date.now()+'.txt';a.click();
+  evidenceLog.push(`[${ts}] ${type}\n         ${detail}`);
+  updateEvidenceDisplay();
+  metrics.req++;
+  updateMetrics();
 }
 
-// ── Checklist ─────────────────────────────────
-function tick(li){
-  const wasDone=li.classList.contains('done');
-  li.classList.toggle('done');
-  if(!wasDone){counts.tasks++;addEvidence('TASK COMPLETE',li.querySelector('span').textContent);}
-  else counts.tasks--;
-  updateTasks();
+function updateEvidenceDisplay(){
+  const box=document.getElementById('elog');
+  if(box) box.textContent = '# IR Evidence Log — CorpPortal\n' + evidenceLog.join('\n');
+}
+
+function updateMetrics(){
+  const mReq = document.getElementById('m-req');
+  const mFail = document.getElementById('m-fail');
+  const mIdor = document.getElementById('m-idor');
+  if(mReq) mReq.textContent = metrics.req;
+  if(mFail) mFail.textContent = metrics.fail;
+  if(mIdor) mIdor.textContent = metrics.idor;
+}
+
+function clearEvidence(){
+  evidenceLog = [];
+  updateEvidenceDisplay();
+}
+
+function exportEvidence(){
+  const blob=new Blob(['# IR Evidence Log — CorpPortal\n' + evidenceLog.join('\n')],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='ir-evidence-'+Date.now()+'.txt';a.click();
 }
 
 // ── API helpers ───────────────────────────────
 function show(id,text,isErr){
   const b=document.getElementById(id);
+  if(!b) return;
   b.style.display='block';b.textContent=text;
   b.className='rbox'+(isErr?' err':b.className.includes('info')?' info':'');
 }
@@ -313,8 +174,15 @@ async function doLogin(){
     const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
     const d=await r.json();
     show('l-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
-    if(!r.ok){bump('fail');addEvidence('LOGIN FAIL','user='+u+' status='+r.status+' error='+d.error);}
-    else addEvidence('LOGIN SUCCESS','user='+u+' role='+d.user?.role+' token='+d.token+'\n         debug_secret='+d.debug?.sessionSecret);
+    if(!r.ok){
+      metrics.fail++;
+      updateMetrics();
+      addEvidence('LOGIN FAIL','user='+u+' status='+r.status+' error='+d.error);
+    } else {
+      currentUser = d.user;
+      addEvidence('LOGIN SUCCESS','user='+u+' role='+d.user?.role);
+      renderAppView(); // Switch to admin panel if admin
+    }
   }catch(e){show('l-box','Error: '+e.message,true);}
 }
 
@@ -336,7 +204,11 @@ async function doProfile(){
     const r=await fetch('/api/profile?id='+encodeURIComponent(id));
     const d=await r.json();
     show('p-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
-    if(r.ok){bump('idor');addEvidence('IDOR PROBE','id='+id+' user='+d.username+' password='+d.password+' salary='+d.salary);}
+    if(r.ok){
+      metrics.idor++;
+      updateMetrics();
+      addEvidence('IDOR PROBE','id='+id+' user='+d.username+' password='+d.password+' salary='+d.salary);
+    }
   }catch(e){show('p-box','Error: '+e.message,true);}
 }
 
@@ -345,9 +217,176 @@ async function doAudit(){
     const r=await fetch('/api/audit');
     const d=await r.json();
     show('a-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),false);
-    addEvidence('AUDIT LOG ACCESSED','No auth required. '+d.total+' entries returned. Full session history exposed.');
+    addEvidence('AUDIT LOG ACCESSED','No auth required. '+d.total+' entries returned.');
   }catch(e){show('a-box','Error: '+e.message,true);}
 }
+
+// ── Vulnerability Demo: No Password Login ──
+async function demoNoPasswordLogin(){
+  const username = document.getElementById('demo-user').value;
+  if(!username){
+    alert('Enter a username first');
+    return;
+  }
+  try{
+    // Demonstrating that ANY password works due to backend vulnerability
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,password:'anything_works'})});
+    const d=await r.json();
+    show('demo-box','HTTP '+r.status+'\n🔴 VULNERABILITY DEMO: Login succeeded with fake password!\n\n'+JSON.stringify(d,null,2),false);
+    if(r.ok){
+      currentUser = d.user;
+      addEvidence('NO PASSWORD LOGIN','Logged in as '+username+' without valid password');
+      renderAppView();
+    }
+  }catch(e){show('demo-box','Error: '+e.message,true);}
+}
+
+// ── Admin User Lookup ──
+async function adminLookup(){
+  const userId = document.getElementById('admin-user-id').value;
+  if(!userId){
+    alert('Enter a user ID');
+    return;
+  }
+  try{
+    const r=await fetch('/api/profile?id='+encodeURIComponent(userId));
+    const d=await r.json();
+    const resultBox = document.getElementById('admin-result');
+    resultBox.style.display = 'block';
+    resultBox.textContent = JSON.stringify(d, null, 2);
+    addEvidence('ADMIN LOOKUP','Admin viewed user ID '+userId);
+  }catch(e){
+    alert('Error: '+e.message);
+  }
+}
+
+// ── Render Views ──
+function renderLoginView(){
+  return `
+    <div style="max-width:500px;margin:0 auto">
+      <div class="card">
+        <div class="card-head"><h3>Login <span class="tag">POST /api/login</span></h3></div>
+        <div class="card-body">
+          <div class="field"><label>Username</label><input type="text" id="l-user" placeholder="admin"></div>
+          <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="password"></div>
+          <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
+          <p class="hint">Observe the full JSON response carefully.</p>
+          <div class="rbox" id="l-box"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Register <span class="tag">POST /api/register</span></h3></div>
+        <div class="card-body">
+          <div class="field"><label>Username</label><input type="text" id="r-user" placeholder="newuser"></div>
+          <div class="field"><label>Email</label><input type="email" id="r-email" placeholder="you@example.com"></div>
+          <div class="field"><label>Password</label><input type="password" id="r-pass" placeholder="choose a password"></div>
+          <button class="btn btn-primary" onclick="doRegister()">Create account</button>
+          <p class="hint">What does the server return after registration?</p>
+          <div class="rbox" id="r-box"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🔴 VULNERABILITY DEMO: Login Without Password</h3></div>
+        <div class="card-body">
+          <div class="row">
+            <input type="text" id="demo-user" placeholder="Enter any username (e.g., admin)" style="flex:1">
+            <button class="btn btn-danger" onclick="demoNoPasswordLogin()">Try Login (Any Password)</button>
+          </div>
+          <p class="hint">This demonstrates a critical authentication bypass vulnerability.</p>
+          <div class="rbox info" id="demo-box"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>User profile lookup (IDOR Demo) <span class="tag">GET /api/profile?id=</span></h3></div>
+        <div class="card-body">
+          <div class="row">
+            <input type="number" id="p-id" placeholder="User ID (1,2,3,4)" min="1">
+            <button class="btn btn-primary" onclick="doProfile()">Fetch profile</button>
+          </div>
+          <p class="hint">No login required. Try ID 4 for a surprise!</p>
+          <div class="rbox" id="p-box"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Internal audit log <span class="tag">GET /api/audit</span></h3></div>
+        <div class="card-body">
+          <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
+          <p class="hint">No authentication required - internal logs exposed!</p>
+          <div class="rbox info" id="a-box"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminView(){
+  return `
+    <div style="max-width:700px;margin:0 auto">
+      <div class="card" style="border-color:var(--green)">
+        <div class="card-head" style="background:rgba(74,222,128,0.1)">
+          <h3>👑 Admin Dashboard - User Management</h3>
+          <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label>🔍 User Lookup (IDOR still works here)</label>
+            <div class="row">
+              <input type="number" id="admin-user-id" placeholder="Enter User ID (1-4)" min="1" max="4">
+              <button class="btn btn-primary" onclick="adminLookup()">Lookup User</button>
+            </div>
+          </div>
+          <div class="rbox" id="admin-result" style="display:none; margin-top:15px"></div>
+          <p class="hint">⚠️ Notice: Even as admin, the same IDOR vulnerability exists.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>📊 Metrics & Evidence Log</h3></div>
+        <div class="card-body">
+          <div class="metrics">
+            <div class="metric"><div class="metric-v" id="m-req">${metrics.req}</div><div class="metric-l">Requests made</div></div>
+            <div class="metric"><div class="metric-v" id="m-fail" style="color:var(--red)">${metrics.fail}</div><div class="metric-l">Failed logins</div></div>
+            <div class="metric"><div class="metric-v" id="m-idor" style="color:var(--yellow)">${metrics.idor}</div><div class="metric-l">IDOR probes</div></div>
+          </div>
+          
+          <div style="margin-top:20px">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+              <h3>Evidence Log</h3>
+              <div>
+                <button class="btn btn-ghost btn-sm" onclick="clearEvidence()">Clear</button>
+                <button class="btn btn-primary btn-sm" onclick="exportEvidence()">Export .txt</button>
+              </div>
+            </div>
+            <div class="ebox" id="elog"># IR Evidence Log — CorpPortal\n${evidenceLog.join('\n')}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAppView(){
+  const appDiv = document.getElementById('app-view');
+  if(currentUser && currentUser.role === 'admin'){
+    appDiv.innerHTML = renderAdminView();
+    updateMetrics();
+    updateEvidenceDisplay();
+  } else {
+    appDiv.innerHTML = renderLoginView();
+  }
+}
+
+function logout(){
+  currentUser = null;
+  renderAppView();
+}
+
+// Initial render
+renderAppView();
 </script>
 </body>
 </html>

@@ -15,50 +15,59 @@ export default function handler(req, res) {
   console.log(`[LOGIN] Attempt from ${ip} — username=${username} password=${password}`);
   console.log(`[CONFIG] Session secret=${SESSION_SECRET}`);
 
-  // 🔴 VULN A07: No rate limiting — unlimited brute force attempts
-  failedAttempts[ip] = (failedAttempts[ip] || 0);
+  // 🔴 CRITICAL VULNERABILITY: Password is completely ignored!
+  // This allows login with ANY password for any existing user
+  console.log(`[LOGIN] 🔴 AUTH BYPASS: Password '${password}' is accepted for any user!`);
 
+  // Find the user by username only (no password validation)
   const user = users.find(u => u.username === username);
 
   if (!user) {
-    failedAttempts[ip]++;
+    failedAttempts[ip] = (failedAttempts[ip] || 0) + 1;
     logEvent('LOGIN_FAIL', { username, reason: 'user not found' }, req);
     // 🔴 VULN A01: Verbose error reveals whether username exists
     return res.status(401).json({ error: `No account found for username: ${username}` });
   }
 
-  if (user.password !== password) {
-    failedAttempts[ip]++;
-    logEvent('LOGIN_FAIL', { username, reason: 'wrong password', attempts: failedAttempts[ip] }, req);
-    return res.status(401).json({
-      error:    'Incorrect password',
-      attempts: failedAttempts[ip],
-      // 🔴 VULN A01: Leaks attempt count per IP
-    });
-  }
-
+  // 🔴 VULNERABILITY: NO PASSWORD CHECK!
+  // Any password (or no password) works for any valid username
+  // The password parameter is completely ignored
+  
   failedAttempts[ip] = 0;
-  logEvent('LOGIN_SUCCESS', { username, role: user.role }, req);
+  logEvent('LOGIN_SUCCESS', { 
+    username, 
+    role: user.role,
+    // 🔴 Logs the fake password used to bypass auth
+    password_used: password,
+    auth_bypass: true 
+  }, req);
 
-  // 🔴 VULN A07: Token is just base64 of username — not signed
-  const fakeToken = Buffer.from(`${username}:${user.role}:${Date.now()}`).toString('base64');
+  // 🔴 VULN A07: Token is just base64 of username:role:timestamp - not signed
+  const fakeToken = Buffer.from(`${username}:${user.role}:${Date.now()}:auth_bypass`).toString('base64');
 
   return res.status(200).json({
-    message: 'Login successful',
-    token:   fakeToken,
+    message: '✅ Login successful (AUTHENTICATION BYPASS - password not validated!)',
+    warning: '🔴 This endpoint accepts ANY password for existing users',
+    token: fakeToken,
     user: {
-      id:       user.id,
+      id: user.id,
       username: user.username,
-      email:    user.email,
-      role:     user.role,
-      // 🔴 VULN A01: Returns salary and role in login response
-      salary:   user.salary,
+      email: user.email,
+      role: user.role,
+      // 🔴 VULN A01: Returns salary and password in login response
+      salary: user.salary,
+      password: user.password, // Returns plaintext password too!
     },
     debug: {
       // 🔴 VULN A05: Debug info returned in production response
       sessionSecret: SESSION_SECRET,
-      nodeVersion:   process.version,
-      allUsers:      users.map(u => u.username),
+      nodeVersion: process.version,
+      allUsers: users.map(u => u.username),
+      vuln_details: {
+        type: "Authentication Bypass",
+        description: "Password parameter is completely ignored",
+        impact: "Anyone can login as any user without knowing their password"
+      }
     }
   });
 }
