@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IR Lab — Vercel Incident</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+
+    /* Timer bar */
+    #timer-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: #1a1a1a; border-bottom: 1px solid #333;
+      padding: 10px 24px; display: flex; align-items: center;
+      justify-content: space-between; z-index: 100;
+    }
+    #timer-display {
+      font-size: 28px; font-weight: 700; font-family: monospace;
+      color: #4ade80;
+      transition: color 0.3s;
+    }
+    #timer-display.warning { color: #facc15; }
+    #timer-display.danger  { color: #f87171; }
+    .timer-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: .08em; }
+    #progress-bar { position: fixed; top: 52px; left: 0; height: 3px; background: #4ade80; transition: width 1s linear, background .3s; z-index: 100; }
+
+    .content { max-width: 860px; margin: 0 auto; padding: 80px 24px 40px; }
+
+    .incident-banner {
+      background: #1c0a0a; border: 1px solid #7f1d1d;
+      border-radius: 8px; padding: 20px 24px; margin-bottom: 28px;
+    }
+    .incident-banner h1 { color: #fca5a5; font-size: 18px; margin-bottom: 6px; }
+    .incident-banner p  { color: #9ca3af; font-size: 13px; line-height: 1.6; }
+
+    .brief {
+      background: #111; border: 1px solid #2a2a2a;
+      border-radius: 8px; padding: 20px 24px; margin-bottom: 24px;
+    }
+    .brief h2 { font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing:.06em; margin-bottom: 12px; }
+    .brief p  { font-size: 14px; color: #d1d5db; line-height: 1.7; margin-bottom: 8px; }
+    .brief ul { padding-left: 20px; }
+    .brief li { font-size: 14px; color: #d1d5db; line-height: 1.8; }
+
+    .panel { background: #111; border: 1px solid #2a2a2a; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+    .panel-header {
+      padding: 12px 20px; background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .panel-header h3 { font-size: 13px; font-weight: 500; color: #9ca3af; }
+    .panel-body { padding: 20px; }
+
+    input, button, select {
+      font-family: inherit; font-size: 13px;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%; background: #0a0a0a; border: 1px solid #333;
+      color: #e0e0e0; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;
+    }
+    button {
+      background: #1d4ed8; color: #fff; border: none;
+      padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: 500;
+    }
+    button:hover { background: #1e40af; }
+    button.secondary { background: #1a1a1a; border: 1px solid #333; color: #9ca3af; }
+    button.secondary:hover { background: #222; }
+
+    .response-box {
+      background: #0a0a0a; border: 1px solid #222; border-radius: 6px;
+      padding: 12px; margin-top: 12px; font-family: monospace; font-size: 12px;
+      color: #86efac; white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+      display: none;
+    }
+    .response-box.error { color: #fca5a5; }
+
+    .hint {
+      font-size: 12px; color: #6b7280; margin-top: 8px; font-style: italic;
+    }
+    .url-row { display: flex; gap: 8px; align-items: center; }
+    .url-row input { margin: 0; flex: 1; }
+
+    .checklist { list-style: none; padding: 0; }
+    .checklist li {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 0; border-bottom: 1px solid #1a1a1a; font-size: 13px; color: #9ca3af;
+      cursor: pointer;
+    }
+    .checklist li:hover { color: #d1d5db; }
+    .checklist li.done { color: #4ade80; text-decoration: line-through; }
+    .check-box { width: 16px; height: 16px; border: 1px solid #444; border-radius: 3px; flex-shrink: 0; }
+    .checklist li.done .check-box { background: #4ade80; border-color: #4ade80; }
+
+    .evidence-box {
+      background: #0a0a0a; border: 1px solid #222; border-radius: 6px;
+      padding: 12px; font-family: monospace; font-size: 11px; color: #86efac;
+      white-space: pre-wrap; min-height: 80px; max-height: 300px; overflow-y: auto;
+      margin-top: 8px;
+    }
+    .tag {
+      display: inline-block; font-size: 10px; padding: 1px 8px;
+      border-radius: 10px; margin-left: 6px;
+      background: #1c1917; color: #a16207; border: 1px solid #292524;
+    }
+  </style>
+</head>
+<body>
+
+<div id="timer-bar">
+  <div>
+    <div class="timer-label">Incident Response Timer</div>
+    <div id="timer-display">25:00</div>
+  </div>
+  <div style="text-align:right">
+    <div class="timer-label" style="margin-bottom:4px">IR Lab — Vercel Serverless</div>
+    <button class="secondary" onclick="resetTimer()">Reset</button>
+    <button onclick="toggleTimer()" id="toggle-btn" style="margin-left:6px">Start</button>
+  </div>
+</div>
+<div id="progress-bar" style="width:100%"></div>
+
+<div class="content">
+
+  <!-- Incident brief -->
+  <div class="incident-banner">
+    <h1>⚠ Security Incident — Unauthorised Data Access Detected</h1>
+    <p>At 09:14 UTC, automated monitoring flagged unusual API activity on the company portal. Multiple endpoints were accessed in rapid succession from an unknown IP. You have been called in to investigate. Time is critical — the attacker may still be active.</p>
+  </div>
+
+  <div class="brief">
+    <h2>Your objectives</h2>
+    <ul>
+      <li>Identify which endpoints were accessed and in what order</li>
+      <li>Determine what data was exposed</li>
+      <li>Identify the vulnerability that enabled the attack</li>
+      <li>Document your findings with timestamps</li>
+    </ul>
+  </div>
+
+  <!-- Task checklist -->
+  <div class="panel">
+    <div class="panel-header"><h3>Investigation Checklist</h3></div>
+    <div class="panel-body">
+      <ul class="checklist" id="checklist">
+        <li onclick="tick(this)"><div class="check-box"></div>Probe the login endpoint with test credentials</li>
+        <li onclick="tick(this)"><div class="check-box"></div>Attempt brute force — observe lack of lockout</li>
+        <li onclick="tick(this)"><div class="check-box"></div>Find and access the IDOR endpoint</li>
+        <li onclick="tick(this)"><div class="check-box"></div>Access all user IDs (1–4) via the data endpoint</li>
+        <li onclick="tick(this)"><div class="check-box"></div>Discover the exposed internal log endpoint</li>
+        <li onclick="tick(this)"><div class="check-box"></div>Collect all evidence into the evidence log below</li>
+        <li onclick="tick(this)"><div class="check-box"></div>Write a 3-sentence incident summary</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Login tester -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Tool 1 — Login endpoint tester <span class="tag">POST /api/login</span></h3>
+    </div>
+    <div class="panel-body">
+      <input type="text"     id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="tryLogin()">Send Request</button>
+      <p class="hint">Try: admin / wrong, then admin / password123. Watch the response carefully.</p>
+      <div class="response-box" id="login-response"></div>
+    </div>
+  </div>
+
+  <!-- IDOR tester -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Tool 2 — Data endpoint <span class="tag">GET /api/data?id=</span></h3>
+    </div>
+    <div class="panel-body">
+      <div class="url-row">
+        <input type="text" id="data-id" placeholder="User ID (try 1, 2, 3, 4)">
+        <button onclick="fetchData()">Fetch</button>
+      </div>
+      <p class="hint">No authentication required. Try each ID and note what is returned.</p>
+      <div class="response-box" id="data-response"></div>
+    </div>
+  </div>
+
+  <!-- Log endpoint -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Tool 3 — Internal log endpoint <span class="tag">GET /api/logs</span></h3>
+    </div>
+    <div class="panel-body">
+      <button onclick="fetchLogs()">Access /api/logs</button>
+      <p class="hint">This endpoint should never be publicly accessible. What does it expose?</p>
+      <div class="response-box" id="logs-response"></div>
+    </div>
+  </div>
+
+  <!-- Evidence collector -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Evidence Log</h3>
+    </div>
+    <div class="panel-body">
+      <div class="evidence-box" id="evidence-log"># Evidence collected during investigation
+# Format: [HH:MM:SS] FINDING — description
+</div>
+      <button onclick="clearEvidence()" class="secondary" style="margin-top:8px">Clear</button>
+      <button onclick="exportEvidence()" style="margin-left:8px;margin-top:8px">Export</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Timer
+  const DURATION = 25 * 60;
+  let remaining = DURATION, running = false, interval = null;
+
+  function pad(n) { return String(n).padStart(2,'0'); }
+  function updateDisplay() {
+    const m = Math.floor(remaining/60), s = remaining%60;
+    const el = document.getElementById('timer-display');
+    el.textContent = pad(m)+':'+pad(s);
+    el.className = remaining < 300 ? 'danger' : remaining < 600 ? 'warning' : '';
+    const pct = (remaining/DURATION)*100;
+    const pb = document.getElementById('progress-bar');
+    pb.style.width = pct+'%';
+    pb.style.background = remaining < 300 ? '#f87171' : remaining < 600 ? '#facc15' : '#4ade80';
+  }
+  function toggleTimer() {
+    running = !running;
+    document.getElementById('toggle-btn').textContent = running ? 'Pause' : 'Resume';
+    if (running) {
+      interval = setInterval(() => {
+        if (remaining > 0) { remaining--; updateDisplay(); }
+        else { clearInterval(interval); running = false; document.getElementById('toggle-btn').textContent = 'Start'; }
+      }, 1000);
+    } else { clearInterval(interval); }
+  }
+  function resetTimer() {
+    clearInterval(interval); running = false; remaining = DURATION;
+    document.getElementById('toggle-btn').textContent = 'Start';
+    updateDisplay();
+  }
+  updateDisplay();
+
+  // Checklist
+  function tick(li) {
+    li.classList.toggle('done');
+    addEvidence('TASK ' + (li.classList.contains('done') ? 'COMPLETE' : 'UNDONE'), li.querySelector('div + *').textContent.trim().substring(0,60));
+  }
+
+  // Evidence log
+  function addEvidence(type, detail) {
+    const now = new Date();
+    const ts = [now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+    const box = document.getElementById('evidence-log');
+    box.textContent += `\n[${ts}] ${type} — ${detail}`;
+    box.scrollTop = box.scrollHeight;
+  }
+  function clearEvidence() { document.getElementById('evidence-log').textContent = '# Evidence collected during investigation\n'; }
+  function exportEvidence() {
+    const blob = new Blob([document.getElementById('evidence-log').textContent], {type:'text/plain'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'ir-evidence-'+Date.now()+'.txt'; a.click();
+  }
+
+  // API calls
+  async function tryLogin() {
+    const u = document.getElementById('username').value;
+    const p = document.getElementById('password').value;
+    const box = document.getElementById('login-response');
+    box.style.display = 'block';
+    box.textContent = 'Sending...';
+    try {
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({username:u, password:p})
+      });
+      const data = await r.json();
+      const out = `HTTP ${r.status}\n${JSON.stringify(data, null, 2)}`;
+      box.textContent = out;
+      box.className = 'response-box' + (r.ok ? '' : ' error');
+      addEvidence('LOGIN ATTEMPT', `user=${u} status=${r.status} response=${JSON.stringify(data).substring(0,80)}`);
+    } catch(e) { box.textContent = 'Error: '+e.message; box.className='response-box error'; }
+  }
+
+  async function fetchData() {
+    const id = document.getElementById('data-id').value;
+    const box = document.getElementById('data-response');
+    box.style.display = 'block';
+    box.textContent = 'Fetching...';
+    try {
+      const r = await fetch('/api/data?id='+encodeURIComponent(id));
+      const data = await r.json();
+      box.textContent = `HTTP ${r.status}\n${JSON.stringify(data, null, 2)}`;
+      box.className = 'response-box' + (r.ok ? '' : ' error');
+      addEvidence('IDOR PROBE', `id=${id} status=${r.status} data=${JSON.stringify(data).substring(0,100)}`);
+    } catch(e) { box.textContent = 'Error: '+e.message; box.className='response-box error'; }
+  }
+
+  async function fetchLogs() {
+    const box = document.getElementById('logs-response');
+    box.style.display = 'block';
+    box.textContent = 'Fetching...';
+    try {
+      const r = await fetch('/api/logs');
+      const data = await r.json();
+      box.textContent = `HTTP ${r.status}\n${JSON.stringify(data, null, 2)}`;
+      box.className = 'response-box';
+      addEvidence('LOG ENDPOINT', `Accessed /api/logs — status=${r.status} env=${JSON.stringify(data.env)}`);
+    } catch(e) { box.textContent = 'Error: '+e.message; box.className='response-box error'; }
+  }
+</script>
+</body>
+</html>
