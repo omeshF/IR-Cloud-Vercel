@@ -12,473 +12,344 @@
   --yellow:#facc15;--blue:#60a5fa;--accent:#1d4ed8;
 }
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-
-/* ── Timer ── */
 #hud{position:fixed;top:0;left:0;right:0;height:54px;background:#0a0a0a;
   border-bottom:1px solid var(--border);display:flex;align-items:center;
   justify-content:space-between;padding:0 20px;z-index:200}
-#clock{font-size:26px;font-weight:700;font-family:monospace;color:var(--green);transition:color .3s}
-#clock.warn{color:var(--yellow)}#clock.crit{color:var(--red)}
-#pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);
-  transition:width 1s linear,background .3s;z-index:200}
-.hud-label{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+#clock{font-size:26px;font-weight:700;font-family:monospace;color:var(--green)}
+#pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);transition:width 1s linear;z-index:200}
+.hud-label{font-size:11px;color:var(--muted);text-transform:uppercase}
 .hud-btns{display:flex;gap:8px}
-
-/* ── Layout ── */
 .wrap{max-width:900px;margin:0 auto;padding:74px 20px 40px}
-
-/* ── Cards ── */
-.card{background:var(--surface);border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:16px}
-.card-head{padding:11px 18px;background:#161616;border-bottom:1px solid var(--border);
-  display:flex;justify-content:space-between;align-items:center}
-.card-head h3{font-size:13px;font-weight:500;color:var(--muted)}
+.card{background:var(--surface);border:1px solid #2a2a2a;border-radius:8px;margin-bottom:16px}
+.card-head{padding:11px 18px;background:#161616;border-bottom:1px solid #222}
 .card-body{padding:18px}
-.tag{font-size:10px;padding:1px 8px;border-radius:10px;background:#1c1917;color:#a16207;border:1px solid #292524}
-
-/* ── Forms ── */
-.field{margin-bottom:10px}
-label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-input[type=text],input[type=email],input[type=password],input[type=number]{
-  width:100%;background:#0a0a0a;border:1px solid #333;color:var(--text);
-  padding:8px 11px;border-radius:6px;font-size:13px;font-family:inherit}
-input:focus{outline:none;border-color:#555}
-.btn{display:inline-block;padding:8px 18px;border-radius:6px;font-size:13px;
-  font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:background .15s}
-.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#1e40af}
-.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}.btn-ghost:hover{background:#1a1a1a}
-.btn-danger{background:#7f1d1d;color:#fca5a5}.btn-danger:hover{background:#991b1b}
-.btn-sm{padding:5px 12px;font-size:12px}
-.row{display:flex;gap:8px;align-items:center}
-.row input{margin:0;flex:1}
-
-/* ── Response / log boxes ── */
-.rbox{background:#0a0a0a;border:1px solid var(--border);border-radius:6px;
-  padding:11px;margin-top:10px;font-family:monospace;font-size:11px;
-  color:var(--green);white-space:pre-wrap;max-height:220px;overflow-y:auto;display:none}
-.rbox.err{color:var(--red)}.rbox.info{color:var(--blue)}
-.hint{font-size:12px;color:var(--muted);margin-top:6px;font-style:italic}
-
-/* ── Evidence ── */
-.ebox{background:#0a0a0a;border:1px solid var(--border);border-radius:6px;
-  padding:11px;font-family:monospace;font-size:11px;color:var(--green);
-  white-space:pre-wrap;min-height:100px;max-height:320px;overflow-y:auto}
-
-/* ── Metrics ── */
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
-.metric{background:#161616;border-radius:6px;padding:12px;text-align:center}
-.metric-v{font-size:22px;font-weight:700}
-.metric-l{font-size:11px;color:var(--muted);margin-top:2px}
-
-/* ── Log viewer ── */
-.log-viewer{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:12px;margin-top:15px}
-.log-entry{font-family:monospace;font-size:10px;padding:6px;border-bottom:1px solid #1a1a1a;color:#9ca3af}
-.log-entry:hover{background:#1a1a1a}
-.log-timestamp{color:var(--green)}
-.log-warning{color:var(--yellow)}
-.log-critical{color:var(--red)}
-.buffer-warning{background:#7f1d1d;color:#fca5a5;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:bold}
+input, button{width:100%;margin-bottom:10px;padding:8px;border-radius:6px}
+input{background:#0a0a0a;border:1px solid #333;color:var(--text)}
+.btn{background:#1d4ed8;color:#fff;border:none;cursor:pointer}
+.btn-danger{background:#7f1d1d}
+.btn-ghost{background:#333;color:#fff}
+.rbox{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:11px;margin-top:10px;
+  font-family:monospace;font-size:11px;white-space:pre-wrap;display:none}
+.rbox.err{color:var(--red)}
+.rbox.info{color:var(--blue)}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.row{display:flex;gap:8px}
+.row button{width:auto}
 </style>
 </head>
 <body>
 
-<!-- HUD -->
 <div id="hud">
   <div>
     <div class="hud-label">Incident Response Timer</div>
     <div id="clock">25:00</div>
   </div>
   <div style="text-align:right">
-    <div class="hud-label" style="margin-bottom:4px">QA — Cloud IR Lab</div>
+    <div class="hud-label">QA — Cloud IR Lab</div>
     <div class="hud-btns">
-      <button class="btn btn-ghost btn-sm" onclick="resetTimer()">Reset</button>
-      <button class="btn btn-primary btn-sm" id="tbtn" onclick="toggleTimer()">Start</button>
+      <button class="btn btn-ghost" onclick="resetTimer()">Reset</button>
+      <button class="btn" id="tbtn" onclick="toggleTimer()">Start</button>
     </div>
   </div>
 </div>
 <div id="pbar" style="width:100%"></div>
 
-<div class="wrap">
-  <div id="app-view"></div>
-</div>
+<div class="wrap" id="app-view"></div>
 
 <script>
-// ── Timer ──────────────────────────────────────
-const TOTAL = 25*60;
-let remaining = TOTAL, running = false, iv = null;
-let currentUser = null;
-let serverLogs = [];
+// ========== TIMER FUNCTIONS ==========
+let remaining = 1500; // 25 minutes
+let running = false;
+let iv = null;
 
-function pad(n){return String(n).padStart(2,'0')}
-function drawTimer(){
-  const m=Math.floor(remaining/60),s=remaining%60;
-  const el=document.getElementById('clock');
-  el.textContent=pad(m)+':'+pad(s);
-  el.className=remaining<300?'crit':remaining<600?'warn':'';
-  const pct=(remaining/TOTAL)*100;
-  const pb=document.getElementById('pbar');
-  pb.style.width=pct+'%';
-  pb.style.background=remaining<300?'#f87171':remaining<600?'#facc15':'#4ade80';
-}
-function toggleTimer(){
-  running=!running;
-  document.getElementById('tbtn').textContent=running?'Pause':'Resume';
-  if(running){iv=setInterval(()=>{if(remaining>0){remaining--;drawTimer();}else{clearInterval(iv);running=false;document.getElementById('tbtn').textContent='Start';}},1000);}
-  else clearInterval(iv);
-}
-function resetTimer(){clearInterval(iv);running=false;remaining=TOTAL;document.getElementById('tbtn').textContent='Start';drawTimer();}
-drawTimer();
-
-// ── Evidence & Metrics ──
-let evidenceLog = [];
-let metrics = {req:0,fail:0,idor:0};
-
-function addEvidence(type,detail){
-  const now=new Date();
-  const ts=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
-  evidenceLog.push(`[${ts}] ${type}\n         ${detail}`);
-  updateEvidenceDisplay();
-  metrics.req++;
-  updateMetrics();
+function pad(n) {
+  return String(n).padStart(2, '0');
 }
 
-function updateEvidenceDisplay(){
-  const box=document.getElementById('elog');
-  if(box) box.textContent = '# IR Evidence Log — CorpPortal\n' + evidenceLog.join('\n');
+function drawTimer() {
+  const m = Math.floor(remaining / 60);
+  const s = remaining % 60;
+  document.getElementById('clock').textContent = pad(m) + ':' + pad(s);
+  const pct = (remaining / 1500) * 100;
+  document.getElementById('pbar').style.width = pct + '%';
 }
 
-function updateMetrics(){
-  const mReq = document.getElementById('m-req');
-  const mFail = document.getElementById('m-fail');
-  const mIdor = document.getElementById('m-idor');
-  if(mReq) mReq.textContent = metrics.req;
-  if(mFail) mFail.textContent = metrics.fail;
-  if(mIdor) mIdor.textContent = metrics.idor;
-}
-
-function clearEvidence(){
-  evidenceLog = [];
-  updateEvidenceDisplay();
-}
-
-function exportEvidence(){
-  const blob=new Blob(['# IR Evidence Log — CorpPortal\n' + evidenceLog.join('\n')],{type:'text/plain'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='ir-evidence-'+Date.now()+'.txt';a.click();
-}
-
-// ── Fetch and display server logs ──
-async function fetchServerLogs(){
-  try{
-    const r = await fetch('/api/audit');
-    const d = await r.json();
-    serverLogs = d.log || [];
-    displayServerLogs();
-    addEvidence('LOGS FETCHED', `Retrieved ${serverLogs.length} log entries from server`);
-  } catch(e){
-    console.error('Failed to fetch logs:', e);
+function toggleTimer() {
+  running = !running;
+  document.getElementById('tbtn').textContent = running ? 'Pause' : 'Start';
+  if (running) {
+    iv = setInterval(() => {
+      if (remaining > 0) {
+        remaining--;
+        drawTimer();
+      } else {
+        clearInterval(iv);
+        running = false;
+        document.getElementById('tbtn').textContent = 'Start';
+      }
+    }, 1000);
+  } else {
+    clearInterval(iv);
   }
 }
 
-function displayServerLogs(){
-  const container = document.getElementById('server-logs-container');
-  if(!container) return;
+function resetTimer() {
+  clearInterval(iv);
+  running = false;
+  remaining = 1500;
+  drawTimer();
+  document.getElementById('tbtn').textContent = 'Start';
+}
+
+drawTimer();
+
+// ========== HELPER FUNCTIONS ==========
+function show(elementId, message, isError) {
+  const el = document.getElementById(elementId);
+  if (el) {
+    el.textContent = message;
+    el.style.display = 'block';
+    el.className = 'rbox ' + (isError ? 'err' : 'info');
+  }
+}
+
+function getBufferOverflowString() {
+  // Generate a massive string to simulate buffer overflow
+  let result = '';
+  for (let i = 0; i < 5000; i++) {
+    result += 'A';
+  }
+  for (let i = 0; i < 500; i++) {
+    result += '\\x90';
+  }
+  result += '\\x31\\xc0\\x50\\x68\\x2f\\x2f\\x73\\x68';
+  return result;
+}
+
+function testBufferOverflow() {
+  const overflowStr = getBufferOverflowString();
+  const passwordField = document.getElementById('l-pass');
+  if (passwordField) {
+    passwordField.value = overflowStr;
+    alert('✅ Buffer overflow string loaded!\nLength: ' + overflowStr.length + ' bytes\nNow click "Sign In" to see the vulnerability.');
+  }
+}
+
+// ========== API FUNCTIONS ==========
+async function doLogin() {
+  const username = document.getElementById('l-user').value;
+  const password = document.getElementById('l-pass').value;
+  const isOverflow = password.length > 1000;
   
-  if(serverLogs.length === 0){
-    container.innerHTML = '<div class="log-entry">⚠️ No logs found. Logs may have been discarded by Vercel.</div>';
+  console.log('Attempting login:', username, 'Password length:', password.length);
+  
+  try {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const data = await response.json();
+    console.log('Response:', response.status, data);
+    
+    let message = `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`;
+    if (isOverflow) {
+      message = '🔴🔴🔴 BUFFER OVERFLOW ATTEMPT 🔴🔴🔴\nPassword Length: ' + password.length + ' bytes\n\n' + message;
+    }
+    
+    show('l-box', message, !response.ok);
+    
+    if (response.ok) {
+      alert('✅ Login successful! Logged in as: ' + data.user.username);
+      window.currentUser = data.user;
+      renderAppView();
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    show('l-box', 'Error: ' + error.message + '\n\nMake sure the backend API is deployed!', true);
+  }
+}
+
+async function doRegister() {
+  const username = document.getElementById('r-user').value;
+  const email = document.getElementById('r-email').value;
+  const password = document.getElementById('r-pass').value;
+  
+  try {
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password })
+    });
+    const data = await response.json();
+    show('r-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
+    if (response.ok) alert('✅ Registration successful!');
+  } catch (error) {
+    show('r-box', 'Error: ' + error.message, true);
+  }
+}
+
+async function doProfile() {
+  const id = document.getElementById('p-id').value;
+  if (!id) {
+    alert('Please enter a user ID');
     return;
   }
   
-  container.innerHTML = serverLogs.map(log => {
-    let logClass = '';
-    if(log.type === 'BUFFER_OVERFLOW_ATTEMPT') logClass = 'log-critical';
-    else if(log.type === 'LOGIN_SUCCESS' && log.detail?.auth_bypass) logClass = 'log-warning';
-    return `<div class="log-entry ${logClass}">
-      <span class="log-timestamp">[${new Date(log.ts).toLocaleTimeString()}]</span>
-      <span><strong>${log.type}</strong></span>
-      <span style="color:#6b7280">- ${JSON.stringify(log.detail)}</span>
-      <span style="color:#4b5563; font-size:9px"> (IP: ${log.ip})</span>
-    </div>`;
-  }).join('');
-  
-  const warning = document.getElementById('log-volatility-warning');
-  if(warning) warning.style.display = 'block';
-}
-
-// ── Buffer Overflow String Generator ──
-function getBufferOverflowString() {
-  // Realistic buffer overflow payload
-  // This simulates a classic stack-based buffer overflow
-  const nops = '\\x90'.repeat(1000); // NOP sled
-  const shellcode = '\\x31\\xc0\\x50\\x68\\x2f\\x2f\\x73\\x68\\x68\\x2f\\x62\\x69\\x6e\\x89\\xe3\\x50\\x53\\x89\\xe1\\xb0\\x0b\\xcd\\x80'; // Linux execve shellcode
-  const retAddr = '\\x41\\x42\\x43\\x44'.repeat(50); // Return address overwrite attempt
-  const padding = 'A'.repeat(5000); // Buffer padding
-  
-  // Combine to create attack payload
-  return padding + nops + shellcode + retAddr;
-}
-
-// ── Check for buffer overflow in password ──
-function isBufferOverflowAttempt(password) {
-  return password && (
-    password.length > 1000 || 
-    password.includes('\\x90') || 
-    password.includes('A'.repeat(100))
-  );
-}
-
-// ── API calls ──
-async function doLogin(){
-  const username = document.getElementById('l-user').value;
-  const password = document.getElementById('l-pass').value;
-  
-  // Check if this is a buffer overflow attempt
-  const isOverflow = isBufferOverflowAttempt(password);
-  
-  try{
-    const r=await fetch('/api/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({username, password})
-    });
-    const d=await r.json();
-    
-    // Customize response display based on attack type
-    let responseText = `HTTP ${r.status}\n${JSON.stringify(d,null,2)}`;
-    if(isOverflow){
-      responseText = `🔴🔴🔴 BUFFER OVERFLOW ATTEMPT DETECTED 🔴🔴🔴\n\nPassword Length: ${password.length} bytes\nPattern: ${password.substring(0,100)}...\n\n${responseText}`;
+  try {
+    const response = await fetch('/api/profile?id=' + encodeURIComponent(id));
+    const data = await response.json();
+    show('p-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
+    if (response.ok) {
+      alert('✅ Profile retrieved!\nCheck the response box for details.\nNote: Password is returned in plaintext!');
     }
-    
-    show('l-box', responseText, !r.ok);
-    
-    if(!r.ok){
-      metrics.fail++;
-      updateMetrics();
-      addEvidence('LOGIN FAIL', `user=${username} status=${r.status} error=${d.error}${isOverflow ? ' [BUFFER OVERFLOW ATTEMPT]' : ''}`);
-    } else {
-      currentUser = d.user;
-      const overflowNote = isOverflow ? ' (Successful login via buffer overflow string!)' : '';
-      addEvidence('LOGIN SUCCESS', `user=${username} role=${d.user?.role} password_bypass=true${overflowNote}`);
-      renderAppView();
-    }
-  }catch(e){
-    show('l-box','Error: '+e.message,true);
+  } catch (error) {
+    show('p-box', 'Error: ' + error.message, true);
   }
 }
 
-async function doRegister(){
-  const u=document.getElementById('r-user').value;
-  const e=document.getElementById('r-email').value;
-  const p=document.getElementById('r-pass').value;
-  try{
-    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,email:e,password:p})});
-    const d=await r.json();
-    show('r-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
-    addEvidence('REGISTER','user='+u+' status='+r.status+' password_in_response='+d.user?.password);
-  }catch(e){show('r-box','Error: '+e.message,true);}
-}
-
-async function doProfile(id){
-  try{
-    const r=await fetch('/api/profile?id='+encodeURIComponent(id));
-    const d=await r.json();
-    if(document.getElementById('p-box')) show('p-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),!r.ok);
-    if(document.getElementById('admin-result')){
-      const box = document.getElementById('admin-result');
-      box.style.display = 'block';
-      box.textContent = JSON.stringify(d, null, 2);
-    }
-    if(r.ok){
-      metrics.idor++;
-      updateMetrics();
-      addEvidence('IDOR PROBE','id='+id+' user='+d.username+' password='+d.password);
-    }
-  }catch(e){
-    if(document.getElementById('p-box')) show('p-box','Error: '+e.message,true);
-    else alert('Error: '+e.message);
+async function doAudit() {
+  try {
+    const response = await fetch('/api/audit');
+    const data = await response.json();
+    show('a-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, false);
+    alert('✅ Audit log accessed!\nCheck the response box.\nNote: No authentication required!');
+  } catch (error) {
+    show('a-box', 'Error: ' + error.message, true);
   }
 }
 
-async function doAudit(){
-  try{
-    const r=await fetch('/api/audit');
-    const d=await r.json();
-    if(document.getElementById('a-box')) show('a-box','HTTP '+r.status+'\n'+JSON.stringify(d,null,2),false);
-    addEvidence('AUDIT LOG ACCESSED','No auth required. '+d.total+' entries returned.');
-  }catch(e){
-    if(document.getElementById('a-box')) show('a-box','Error: '+e.message,true);
-  }
-}
-
-// ── Admin User Lookup ──
-function adminLookup(){
+// ========== ADMIN FUNCTIONS ==========
+function adminLookup() {
   const userId = document.getElementById('admin-user-id').value;
-  if(!userId){
+  if (!userId) {
     alert('Enter a user ID');
     return;
   }
-  doProfile(userId);
+  
+  fetch('/api/profile?id=' + encodeURIComponent(userId))
+    .then(r => r.json())
+    .then(data => {
+      const resultBox = document.getElementById('admin-result');
+      resultBox.style.display = 'block';
+      resultBox.textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(err => alert('Error: ' + err.message));
 }
 
-// ── Quick fill buffer overflow (for demo) ──
-function fillBufferOverflow(){
-  const overflowStr = getBufferOverflowString();
-  const passwordField = document.getElementById('l-pass');
-  if(passwordField){
-    passwordField.value = overflowStr;
-    // Show warning that buffer overflow string was inserted
-    const warningSpan = document.getElementById('buffer-warning');
-    if(warningSpan) warningSpan.style.display = 'inline-block';
-    setTimeout(() => {
-      if(warningSpan) warningSpan.style.display = 'none';
-    }, 3000);
-    addEvidence('BUFFER OVERFLOW STRING GENERATED', `Created ${overflowStr.length} byte attack payload`);
-  }
+function logout() {
+  window.currentUser = null;
+  renderAppView();
 }
 
-// ── Render Views ──
-function renderLoginView(){
+function fetchServerLogs() {
+  fetch('/api/audit')
+    .then(r => r.json())
+    .then(data => {
+      const container = document.getElementById('server-logs-container');
+      if (container) {
+        container.innerHTML = '<div style="font-family:monospace;font-size:11px">' + 
+          JSON.stringify(data, null, 2) + '</div>';
+      }
+    })
+    .catch(err => console.error('Failed to fetch logs:', err));
+}
+
+// ========== RENDER VIEWS ==========
+function renderLoginView() {
   return `
     <div style="max-width:500px;margin:0 auto">
       <div class="card">
-        <div class="card-head">
-          <h3>Login <span class="tag">POST /api/login</span></h3>
-          <button class="btn btn-danger btn-sm" onclick="fillBufferOverflow()">💣 Test Buffer Overflow</button>
-        </div>
+        <div class="card-head"><h3>🔐 Login <span style="color:#f87171">(Vulnerable)</span></h3></div>
         <div class="card-body">
-          <div class="field">
-            <label>Username</label>
-            <input type="text" id="l-user" placeholder="admin">
-          </div>
-          <div class="field">
-            <label>Password</label>
-            <input type="password" id="l-pass" placeholder="password or buffer overflow string">
-            <span id="buffer-warning" class="buffer-warning" style="display:none; margin-top:5px">⚠️ Buffer overflow string loaded (${getBufferOverflowString().length} bytes)</span>
-          </div>
-          <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
-          <p class="hint">
-            🔴 <strong>VULNERABILITY DEMO:</strong> Try clicking "Test Buffer Overflow" then login - the server accepts ANY password including malicious payloads!
-          </p>
+          <input type="text" id="l-user" placeholder="Username" value="admin">
+          <input type="password" id="l-pass" placeholder="Password">
+          <button class="btn" onclick="doLogin()">Sign In</button>
+          <button class="btn btn-danger" onclick="testBufferOverflow()">💣 Test Buffer Overflow Attack</button>
+          <p class="hint">🔴 Click "Test Buffer Overflow" then "Sign In" - ANY password works!</p>
           <div class="rbox" id="l-box"></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>Register <span class="tag">POST /api/register</span></h3></div>
+        <div class="card-head"><h3>📝 Register</h3></div>
         <div class="card-body">
-          <div class="field"><label>Username</label><input type="text" id="r-user" placeholder="newuser"></div>
-          <div class="field"><label>Email</label><input type="email" id="r-email" placeholder="you@example.com"></div>
-          <div class="field"><label>Password</label><input type="password" id="r-pass" placeholder="choose a password"></div>
-          <button class="btn btn-primary" onclick="doRegister()">Create account</button>
-          <p class="hint">What does the server return after registration?</p>
+          <input type="text" id="r-user" placeholder="Username">
+          <input type="email" id="r-email" placeholder="Email">
+          <input type="password" id="r-pass" placeholder="Password">
+          <button class="btn" onclick="doRegister()">Create Account</button>
+          <p class="hint">⚠️ Password returned in response (plaintext storage)</p>
           <div class="rbox" id="r-box"></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>User profile lookup (IDOR Demo) <span class="tag">GET /api/profile?id=</span></h3></div>
+        <div class="card-head"><h3>🔍 IDOR Demo - Profile Lookup</h3></div>
         <div class="card-body">
           <div class="row">
-            <input type="number" id="p-id" placeholder="User ID (1,2,3,4)" min="1">
-            <button class="btn btn-primary" onclick="doProfile(document.getElementById('p-id').value)">Fetch profile</button>
+            <input type="number" id="p-id" placeholder="User ID (1-4)" style="margin-right:8px">
+            <button class="btn" onclick="doProfile()" style="width:auto">Fetch</button>
           </div>
-          <p class="hint">No login required. Try ID 4 for a surprise!</p>
+          <p class="hint">🔴 No authentication required! Try ID 1, 2, 3, 4</p>
           <div class="rbox" id="p-box"></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>Internal audit log <span class="tag">GET /api/audit</span></h3></div>
+        <div class="card-head"><h3>📋 Internal Audit Log (No Auth)</h3></div>
         <div class="card-body">
           <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
-          <p class="hint">No authentication required - internal logs exposed!</p>
-          <div class="rbox info" id="a-box"></div>
+          <p class="hint">🔴 Should require admin privileges!</p>
+          <div class="rbox" id="a-box"></div>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderAdminView(){
+function renderAdminView() {
   return `
     <div style="max-width:800px;margin:0 auto">
-      <div class="card" style="border-color:var(--green)">
-        <div class="card-head" style="background:rgba(74,222,128,0.1)">
-          <h3>👑 Admin Dashboard - User Management</h3>
-          <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+      <div class="card" style="border-color:#4ade80">
+        <div class="card-head">
+          <h3>👑 Admin Dashboard</h3>
+          <button class="btn btn-ghost" onclick="logout()" style="width:auto">Logout</button>
         </div>
         <div class="card-body">
-          <div class="field">
-            <label>🔍 User Lookup (IDOR Demo)</label>
-            <div class="row">
-              <input type="number" id="admin-user-id" placeholder="Enter User ID (1-4)" min="1" max="4">
-              <button class="btn btn-primary" onclick="adminLookup()">Lookup User</button>
-            </div>
+          <label>🔍 User Lookup (IDOR still works)</label>
+          <div class="row">
+            <input type="number" id="admin-user-id" placeholder="User ID (1-4)">
+            <button class="btn" onclick="adminLookup()" style="width:auto">Lookup</button>
           </div>
-          <div class="rbox" id="admin-result" style="display:none; margin-top:15px"></div>
-          <p class="hint">⚠️ Even as admin, the same IDOR vulnerability exists - demonstrating broken access control.</p>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head"><h3>📊 Metrics & Evidence Log</h3></div>
-        <div class="card-body">
-          <div class="metrics">
-            <div class="metric"><div class="metric-v" id="m-req">${metrics.req}</div><div class="metric-l">Requests made</div></div>
-            <div class="metric"><div class="metric-v" id="m-fail" style="color:var(--red)">${metrics.fail}</div><div class="metric-l">Failed logins</div></div>
-            <div class="metric"><div class="metric-v" id="m-idor" style="color:var(--yellow)">${metrics.idor}</div><div class="metric-l">IDOR probes</div></div>
-          </div>
-          
-          <div style="margin-top:20px">
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px">
-              <h3>Evidence Log</h3>
-              <div>
-                <button class="btn btn-ghost btn-sm" onclick="clearEvidence()">Clear</button>
-                <button class="btn btn-primary btn-sm" onclick="exportEvidence()">Export .txt</button>
-              </div>
-            </div>
-            <div class="ebox" id="elog"># IR Evidence Log — CorpPortal\n${evidenceLog.join('\n')}</div>
-          </div>
+          <div class="rbox" id="admin-result" style="display:none"></div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head"><h3>📜 Server Logs (Vercel - Volatile)</h3></div>
         <div class="card-body">
-          <div style="display:flex; justify-content:space-between; margin-bottom:10px">
-            <button class="btn btn-primary btn-sm" onclick="fetchServerLogs()">🔄 Refresh Logs</button>
-            <span class="tag" style="background:#7f1d1d; color:#fca5a5">⚠️ Logs are ephemeral</span>
+          <button class="btn" onclick="fetchServerLogs()">Refresh Logs</button>
+          <div id="server-logs-container" class="rbox" style="display:block; margin-top:10px">
+            Click refresh to fetch logs
           </div>
-          <div id="log-volatility-warning" style="display:none; background:#1c0a0a; border:1px solid #7f1d1d; border-radius:6px; padding:10px; margin-bottom:10px">
-            <span style="color:var(--yellow)">⚠️ VERCEL SERVERLESS ENVIRONMENT:</span>
-            <span style="color:#9ca3af; font-size:12px"> Logs are stored in-memory and WILL BE DISCARDED when the serverless function cold-starts. This demonstrates why incident response must happen IMMEDIATELY.</span>
-          </div>
-          <div id="server-logs-container" class="log-viewer" style="max-height:400px; overflow-y:auto">
-            <div class="log-entry">Click "Refresh Logs" to fetch current server logs</div>
-          </div>
-          <p class="hint" style="margin-top:10px">🔴 In serverless environments (Vercel, AWS Lambda), logs are volatile. If you wait too long, evidence disappears!</p>
+          <p class="hint">⚠️ Logs are ephemeral - they disappear when serverless functions cold start!</p>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderAppView(){
+function renderAppView() {
   const appDiv = document.getElementById('app-view');
-  if(currentUser && currentUser.role === 'admin'){
+  if (window.currentUser && window.currentUser.role === 'admin') {
     appDiv.innerHTML = renderAdminView();
-    updateMetrics();
-    updateEvidenceDisplay();
-    fetchServerLogs();
   } else {
     appDiv.innerHTML = renderLoginView();
   }
 }
 
-function logout(){
-  currentUser = null;
-  renderAppView();
-}
-
+// Initial render
 renderAppView();
 </script>
 </body>
