@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QA — IR Lab</title>
+<title>QA — IR Lab (Vercel - Serverless Demo)</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -19,7 +19,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 #pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);transition:width 1s linear;z-index:200}
 .hud-label{font-size:11px;color:var(--muted);text-transform:uppercase}
 .hud-btns{display:flex;gap:8px}
-.wrap{max-width:900px;margin:0 auto;padding:74px 20px 40px}
+.wrap{max-width:1000px;margin:0 auto;padding:74px 20px 40px}
 .card{background:var(--surface);border:1px solid #2a2a2a;border-radius:8px;margin-bottom:16px}
 .card-head{padding:11px 18px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center}
 .card-head h3{font-size:13px;font-weight:500;color:var(--muted)}
@@ -31,7 +31,7 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 .btn-ghost{background:#333;color:#fff}
 .btn-sm{padding:5px 12px;width:auto;margin-bottom:0}
 .rbox{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:11px;margin-top:10px;
-  font-family:monospace;font-size:11px;white-space:pre-wrap;display:none}
+  font-family:monospace;font-size:11px;white-space:pre-wrap;display:none;max-height:400px;overflow-y:auto}
 .rbox.err{color:var(--red)}
 .rbox.info{color:var(--blue)}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
@@ -53,7 +53,7 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
     <div id="clock">25:00</div>
   </div>
   <div style="text-align:right">
-    <div class="hud-label">QA — Cloud IR Lab</div>
+    <div class="hud-label">Vercel — Serverless (Stateless Demo)</div>
     <div class="hud-btns">
       <button class="btn btn-ghost btn-sm" onclick="resetTimer()">Reset</button>
       <button class="btn btn-sm" id="tbtn" onclick="toggleTimer()">Start</button>
@@ -170,7 +170,6 @@ async function doLogin() {
     
     if (response.ok) {
       currentUser = data.user;
-      // Show password in evidence log
       if (isLongPassword) {
         addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password.substring(0, 50)}..." (${password.length} chars) - VULNERABILITY: Long password accepted!`);
       } else {
@@ -218,7 +217,6 @@ async function doProfile(userId) {
     const response = await fetch('/api/profile?id=' + encodeURIComponent(id));
     const data = await response.json();
     
-    // Show in appropriate box
     if (document.getElementById('p-box')) {
       show('p-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
     }
@@ -243,10 +241,87 @@ async function doAudit() {
   try {
     const response = await fetch('/api/audit');
     const data = await response.json();
-    show('a-box', `HTTP ${response.status}\nTotal Logs: ${data.total}\n\n${JSON.stringify(data.log, null, 2)}`, false);
+    show('a-box', `HTTP ${response.status}\nTotal Logs: ${data.total}\nServer Info: Vercel Serverless\n\n${JSON.stringify(data.log, null, 2)}`, false);
     addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries - No authentication required!`);
   } catch (error) {
     show('a-box', 'Error: ' + error.message, true);
+  }
+}
+
+// ========== ATTACK SIMULATION ==========
+async function simulateFullAttack() {
+  await simulateSpecificAttack('full_attack');
+}
+
+async function simulateSpecificAttack(actionType) {
+  const resultBox = document.getElementById('attack-result');
+  resultBox.style.display = 'block';
+  resultBox.innerHTML = '🚨 Executing attack simulation... Please wait...';
+  resultBox.className = 'rbox info';
+  
+  try {
+    const response = await fetch('/api/attack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: actionType, target: 'all' })
+    });
+    
+    const data = await response.json();
+    
+    let html = '<div style="font-family: monospace;">';
+    html += '<strong style="color: #f87171;">🚨 ATTACK SIMULATION RESULTS 🚨</strong><br><br>';
+    html += '<strong>Attack ID:</strong> ' + data.attack_summary.attack_id + '<br>';
+    html += '<strong>Timestamp:</strong> ' + new Date(data.attack_summary.timestamp).toLocaleString() + '<br>';
+    html += '<strong>Attacker IP:</strong> ' + data.attack_summary.attacker_ip + '<br>';
+    html += '<strong style="color: #facc15;">Vulnerabilities Exploited:</strong><br>';
+    
+    data.attack_summary.vulnerabilities_used.forEach(v => {
+      html += '  🔴 ' + v + '<br>';
+    });
+    
+    html += '<br><strong style="color: #facc15;">Data Exfiltrated:</strong><br>';
+    data.attack_summary.details.dataExfiltrated.forEach(item => {
+      if (item.type === 'USER_DATA') {
+        html += `  📁 User ${item.username}: Password="${item.password}", Email=${item.email}<br>`;
+      } else if (item.type === 'CRACKED_CREDENTIALS') {
+        html += `  🔑 ${item.count} passwords cracked: `;
+        item.credentials.forEach(c => html += `${c.username}:${c.password} `);
+        html += '<br>';
+      } else if (item.type === 'BACKDOOR_ACCOUNT') {
+        html += `  🚪 Backdoor created: ${item.username} / ${item.password}<br>`;
+      } else if (item.type === 'ACTIVE_SESSIONS') {
+        html += `  🎫 ${item.count} active sessions stolen<br>`;
+      } else if (item.type === 'AUDIT_LOG') {
+        html += `  📋 ${item.entries} audit log entries stolen<br>`;
+      } else if (item.type === 'BUFFER_OVERFLOW_PAYLOAD') {
+        html += `  💣 ${item.size} byte buffer overflow payload sent<br>`;
+      }
+    });
+    
+    html += '<br><strong style="color: #4ade80;">✅ Attack Complete!</strong><br>';
+    html += 'Check the logs above to see evidence of:<br>';
+    html += '  • MALWARE_TRIGGERED events<br>';
+    html += '  • DATA_EXFILTRATION records<br>';
+    html += '  • BRUTE_FORCE_SUCCESS attempts<br>';
+    html += '  • BACKDOOR_CREATED entries<br><br>';
+    
+    html += '<strong style="color: #60a5fa;">🔒 Security Recommendations:</strong><br>';
+    data.evidence.recommendations.forEach(rec => {
+      html += '  • ' + rec + '<br>';
+    });
+    
+    html += '</div>';
+    resultBox.innerHTML = html;
+    resultBox.className = 'rbox';
+    
+    setTimeout(() => {
+      fetchServerLogs();
+      addEvidence('ATTACK_SIMULATED', `${actionType} attack executed - ${data.attack_summary.vulnerabilities_used.length} vulnerabilities exploited`);
+    }, 1000);
+    
+  } catch (error) {
+    resultBox.innerHTML = '❌ Error: ' + error.message + '<br>Make sure the attack endpoint is deployed!';
+    resultBox.className = 'rbox err';
   }
 }
 
@@ -264,17 +339,23 @@ async function fetchServerLogs() {
     const container = document.getElementById('server-logs-container');
     if (container && data.log) {
       if (data.log.length === 0) {
-        container.innerHTML = '<div class="log-entry">⚠️ No logs found. Make some login attempts first!</div>';
+        container.innerHTML = '<div class="log-entry">⚠️ No logs found. Click the attack button to generate evidence!</div>';
       } else {
         container.innerHTML = data.log.map(log => {
           let logClass = '';
-          if (log.type === 'BUFFER_OVERFLOW_ATTEMPT') logClass = 'log-critical';
+          if (log.type === 'MALWARE_TRIGGERED' || log.type === 'DATA_EXFILTRATION') logClass = 'log-critical';
+          else if (log.type === 'BRUTE_FORCE_SUCCESS' || log.type === 'BACKDOOR_CREATED') logClass = 'log-warning';
           else if (log.type === 'LOGIN_SUCCESS') logClass = 'log-warning';
+          else if (log.type === 'LOGIN_FAIL') logClass = 'log-critical';
+          
+          let detailDisplay = JSON.stringify(log.detail, null, 2);
+          if (detailDisplay.length > 200) detailDisplay = detailDisplay.substring(0, 200) + '...';
+          
           return `
             <div class="log-entry ${logClass}">
               <span class="log-timestamp">[${new Date(log.ts).toLocaleTimeString()}]</span>
               <strong>${log.type}</strong><br>
-              <span style="color:#6b7280; font-size:9px">${JSON.stringify(log.detail, null, 2)}</span><br>
+              <span style="color:#6b7280; font-size:9px">${detailDisplay}</span><br>
               <span style="color:#4b5563; font-size:9px">IP: ${log.ip}</span>
             </div>
           `;
@@ -297,6 +378,7 @@ function renderLoginView() {
           <input type="text" id="l-user" placeholder="Username" value="admin">
           <input type="password" id="l-pass" placeholder="Password">
           <button class="btn" onclick="doLogin()">Sign In</button>
+          <p class="hint">Hint: Use "password123" for admin, or try a very long password (hold down 'A' key)</p>
           <div class="rbox" id="l-box"></div>
         </div>
       </div>
@@ -325,17 +407,97 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <p>Welcome, ${currentUser?.username}!</p>
+          <p class="hint" style="color:var(--yellow)">⚠️ Vercel Serverless: Each API function has ISOLATED memory. Logs are fragmented!</p>
+        </div>
+      </div>
+
+      <!-- Attack Simulation Card -->
+      <div class="card" style="border-color: #dc2626;">
+        <div class="card-head" style="background: rgba(220, 38, 38, 0.1);">
+          <h3>🚨 MALWARE SIMULATION - Click to see attack in action</h3>
+        </div>
+        <div class="card-body">
+          <p style="color: #fca5a5; margin-bottom: 15px; font-size: 13px;">
+            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities.
+            Click it, then check the logs to see what happened!
+          </p>
+          
+          <div class="row" style="gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+            <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626; flex: 1;">
+              💣 SIMULATE FULL ATTACK
+            </button>
+            <button class="btn btn-ghost" onclick="simulateSpecificAttack('harvest_users')" style="flex: 1;">
+              👤 Harvest Users
+            </button>
+            <button class="btn btn-ghost" onclick="simulateSpecificAttack('brute_force')" style="flex: 1;">
+              🔓 Brute Force
+            </button>
+          </div>
+          
+          <div class="row" style="gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-ghost" onclick="simulateSpecificAttack('steal_sessions')" style="flex: 1;">
+              🎫 Steal Sessions
+            </button>
+            <button class="btn btn-ghost" onclick="simulateSpecificAttack('access_audit')" style="flex: 1;">
+              📋 Steal Audit Log
+            </button>
+            <button class="btn btn-ghost" onclick="simulateSpecificAttack('create_backdoor')" style="flex: 1;">
+              🚪 Create Backdoor
+            </button>
+          </div>
+          
+          <div id="attack-result" class="rbox" style="display: none; margin-top: 15px; background: #1a0a0a; border-color: #dc2626;"></div>
+        </div>
+      </div>
+
+      <!-- Educational Comparison Card -->
+      <div class="card" style="border-color: var(--red);">
+        <div class="card-head" style="background: rgba(127, 29, 29, 0.2);">
+          <h3>🔬 FORENSICS LESSON: Serverless vs Persistent Server</h3>
+        </div>
+        <div class="card-body">
+          <div class="row" style="gap: 20px; align-items: stretch; flex-wrap: wrap;">
+            
+            <div style="flex: 1; background: #0a0a0a; border-radius: 8px; padding: 15px; border-left: 3px solid #f87171;">
+              <h4 style="color: #f87171; margin-bottom: 10px;">❌ Vercel (You are here)</h4>
+              <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">
+                <strong>What you see:</strong><br>
+                • Only AUDIT_ACCESSED logs<br>
+                • No LOGIN_SUCCESS records<br>
+                • No PROFILE_ACCESS entries<br>
+                • Attack logs may be MISSING!
+              </p>
+              <p style="font-size: 12px; color: #fca5a5;">
+                <strong>Why?</strong> Each API endpoint runs as a SEPARATE serverless function with ISOLATED memory.
+              </p>
+            </div>
+            
+            <div style="flex: 1; background: #0a2a1a; border-radius: 8px; padding: 15px; border-left: 3px solid #4ade80;">
+              <h4 style="color: #4ade80; margin-bottom: 10px;">✅ Render (Compare)</h4>
+              <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">
+                <strong>Complete view:</strong><br>
+                • ✓ All attack events visible<br>
+                • ✓ Complete forensic timeline<br>
+                • ✓ Shared memory across endpoints<br>
+                • ✓ Evidence persists
+              </p>
+              <p style="font-size: 12px; color: #86efac;">
+                <strong>Why?</strong> Single persistent Node.js process with SHARED memory.
+              </p>
+            </div>
+            
+          </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>User Lookup</h3></div>
+        <div class="card-head"><h3>User Lookup (IDOR)</h3></div>
         <div class="card-body">
           <div class="row">
             <input type="number" id="p-id" placeholder="User ID (1, 2, 3, 4)" style="margin-bottom:0">
             <button class="btn" onclick="doProfile()" style="width:auto">Lookup User</button>
           </div>
-          <p class="hint">View any user's details including passwords</p>
+          <p class="hint">No authentication required! Try IDs 1-4</p>
           <div class="rbox" id="p-box"></div>
         </div>
       </div>
@@ -344,24 +506,49 @@ function renderAdminView() {
         <div class="card-head"><h3>Audit Log (No Authentication)</h3></div>
         <div class="card-body">
           <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
+          <p class="hint">🔴 On Vercel, logs are fragmented across functions!</p>
           <div class="rbox" id="a-box"></div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h3>Server Logs (Vercel - Volatile)</h3>
+          <h3>📊 Server Logs (Attack Evidence)</h3>
           <div>
             <button class="btn btn-ghost btn-sm" onclick="clearEvidence()">Clear Evidence</button>
             <button class="btn btn-sm" onclick="exportEvidence()" style="margin-left:5px">Export</button>
           </div>
         </div>
         <div class="card-body">
-          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">Refresh Logs</button>
-          <div id="server-logs-container" class="log-viewer">
-            <div class="log-entry">Click "Refresh Logs" to fetch logs from the API</div>
+          <div style="background: #1a0a0a; border: 1px solid #7f1d1d; border-radius: 6px; padding: 10px; margin-bottom: 15px;">
+            <p style="color: #fca5a5; font-size: 12px; margin-bottom: 5px;">
+              🔴 <strong>ATTACK EVIDENCE WILL APPEAR HERE</strong>
+            </p>
+            <p style="color: #9ca3af; font-size: 11px;">
+              Click "Simulate Full Attack" above, then refresh logs to see:
+              • MALWARE_TRIGGERED events<br>
+              • DATA_EXFILTRATION records with stolen passwords<br>
+              • BRUTE_FORCE_SUCCESS attempts<br>
+              • BACKDOOR_CREATED entries<br>
+              • Complete attack timeline
+            </p>
           </div>
-          <p class="hint">Logs are ephemeral - they disappear when serverless functions cold start</p>
+          
+          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">🔄 Refresh Logs (See Attack Evidence)</button>
+          
+          <div id="server-logs-container" class="log-viewer">
+            <div class="log-entry">Click "Refresh Logs" - Attack evidence will appear here after simulation</div>
+          </div>
+          
+          <div class="hint" style="margin-top: 10px; background: #1a1a1a; padding: 8px; border-radius: 4px;">
+            <code style="color: var(--yellow);">
+            🎯 FORENSICS EXERCISE: After clicking the attack button, answer:<br>
+            1. What vulnerabilities were exploited?<br>
+            2. What data was stolen?<br>
+            3. Was a backdoor account created?<br>
+            4. How would you fix these vulnerabilities?
+            </code>
+          </div>
         </div>
       </div>
 
