@@ -152,29 +152,10 @@ function exportEvidence() {
   a.click();
 }
 
-function getBufferOverflowString() {
-  let result = '';
-  for (let i = 0; i < 5000; i++) result += 'A';
-  for (let i = 0; i < 500; i++) result += '\\x90';
-  result += '\\x31\\xc0\\x50\\x68\\x2f\\x2f\\x73\\x68';
-  return result;
-}
-
-function testBufferOverflow() {
-  const passwordField = document.getElementById('l-pass');
-  if (passwordField) {
-    const overflowStr = getBufferOverflowString();
-    passwordField.value = overflowStr;
-    addEvidence('BUFFER OVERFLOW', `Generated ${overflowStr.length} byte attack payload`);
-    alert('✅ Buffer overflow string loaded!\nLength: ' + overflowStr.length + ' bytes\nNow click "Sign In" to exploit the vulnerability.');
-  }
-}
-
 // ========== API FUNCTIONS ==========
 async function doLogin() {
   const username = document.getElementById('l-user').value;
   const password = document.getElementById('l-pass').value;
-  const isOverflow = password.length > 1000;
   
   try {
     const response = await fetch('/api/login', {
@@ -184,18 +165,11 @@ async function doLogin() {
     });
     
     const data = await response.json();
-    
-    let message = `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`;
-    if (isOverflow) {
-      message = '🔴🔴🔴 BUFFER OVERFLOW ATTEMPT DETECTED 🔴🔴🔴\nPassword Length: ' + password.length + ' bytes\n\n' + message;
-      addEvidence('BUFFER OVERFLOW ATTEMPT', `User: ${username}, Payload size: ${password.length} bytes`);
-    }
-    
-    show('l-box', message, !response.ok);
+    show('l-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
     
     if (response.ok) {
       currentUser = data.user;
-      addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password bypass successful! Password used: "${password.substring(0,50)}${password.length > 50 ? '...' : ''}"`);
+      addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role})`);
       renderAppView();
     } else {
       addEvidence('LOGIN FAILED', `User: ${username} - ${data.error}`);
@@ -220,30 +194,10 @@ async function doRegister() {
     const data = await response.json();
     show('r-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
     if (response.ok) {
-      addEvidence('REGISTRATION', `New user: ${username} - Password stored in plaintext: "${password}"`);
-      alert('✅ Registration successful! Check the response box - password is returned in plaintext!');
+      addEvidence('REGISTRATION', `New user: ${username}`);
     }
   } catch (error) {
     show('r-box', 'Error: ' + error.message, true);
-  }
-}
-
-async function doProfile() {
-  const id = document.getElementById('p-id').value;
-  if (!id) {
-    alert('Please enter a user ID');
-    return;
-  }
-  
-  try {
-    const response = await fetch('/api/profile?id=' + encodeURIComponent(id));
-    const data = await response.json();
-    show('p-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
-    if (response.ok) {
-      addEvidence('IDOR PROBE', `Accessed user ID ${id} - Retrieved: ${data.username} (Password: ${data.password})`);
-    }
-  } catch (error) {
-    show('p-box', 'Error: ' + error.message, true);
   }
 }
 
@@ -252,33 +206,16 @@ async function doAudit() {
     const response = await fetch('/api/audit');
     const data = await response.json();
     show('a-box', `HTTP ${response.status}\nTotal Logs: ${data.total}\n\n${JSON.stringify(data.log, null, 2)}`, false);
-    addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries - No authentication required!`);
+    addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries`);
   } catch (error) {
     show('a-box', 'Error: ' + error.message, true);
   }
 }
 
 // ========== ADMIN FUNCTIONS ==========
-function adminLookup() {
-  const userId = document.getElementById('admin-user-id').value;
-  if (!userId) {
-    alert('Enter a user ID');
-    return;
-  }
-  
-  fetch('/api/profile?id=' + encodeURIComponent(userId))
-    .then(r => r.json())
-    .then(data => {
-      const resultBox = document.getElementById('admin-result');
-      resultBox.style.display = 'block';
-      resultBox.textContent = JSON.stringify(data, null, 2);
-      addEvidence('ADMIN LOOKUP', `Admin viewed user ID ${userId}: ${data.username}`);
-    })
-    .catch(err => alert('Error: ' + err.message));
-}
-
 function logout() {
   currentUser = null;
+  evidenceLog = [];
   renderAppView();
 }
 
@@ -300,7 +237,7 @@ async function fetchServerLogs() {
               <span class="log-timestamp">[${new Date(log.ts).toLocaleTimeString()}]</span>
               <strong>${log.type}</strong><br>
               <span style="color:#6b7280; font-size:9px">${JSON.stringify(log.detail, null, 2)}</span><br>
-              <span style="color:#4b5563; font-size:9px">IP: ${log.ip} | UA: ${log.userAgent?.substring(0, 50)}</span>
+              <span style="color:#4b5563; font-size:9px">IP: ${log.ip}</span>
             </div>
           `;
         }).join('');
@@ -317,25 +254,23 @@ function renderLoginView() {
   return `
     <div style="max-width:500px;margin:0 auto">
       <div class="card">
-        <div class="card-head"><h3>🔐 Login <span style="color:#f87171">(Vulnerable)</span></h3></div>
+        <div class="card-head"><h3>Login</h3></div>
         <div class="card-body">
           <input type="text" id="l-user" placeholder="Username" value="admin">
           <input type="password" id="l-pass" placeholder="Password">
           <button class="btn" onclick="doLogin()">Sign In</button>
-          <button class="btn btn-danger" onclick="testBufferOverflow()">💣 Test Buffer Overflow Attack</button>
-          <p class="hint">🔴 Click "Test Buffer Overflow" then "Sign In" - ANY password works! The server accepts malicious payloads.</p>
+          <p class="hint">Password: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...</p>
           <div class="rbox" id="l-box"></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>📝 Register <span style="color:#f87171">(Plaintext Passwords)</span></h3></div>
+        <div class="card-head"><h3>Register</h3></div>
         <div class="card-body">
           <input type="text" id="r-user" placeholder="Username">
           <input type="email" id="r-email" placeholder="Email">
           <input type="password" id="r-pass" placeholder="Password">
           <button class="btn" onclick="doRegister()">Create Account</button>
-          <p class="hint">⚠️ Password returned in response (plaintext storage vulnerability)</p>
           <div class="rbox" id="r-box"></div>
         </div>
       </div>
@@ -348,59 +283,42 @@ function renderAdminView() {
     <div>
       <div class="card" style="border-color:#4ade80">
         <div class="card-head">
-          <h3>👑 Admin Dashboard</h3>
+          <h3>Admin Dashboard</h3>
           <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
         </div>
         <div class="card-body">
-          <div class="row">
-            <input type="number" id="admin-user-id" placeholder="User ID (1-4)" style="margin-bottom:0">
-            <button class="btn" onclick="adminLookup()" style="width:auto">Lookup User</button>
-          </div>
-          <div class="rbox" id="admin-result" style="display:none; margin-top:10px"></div>
+          <p>Welcome, ${currentUser?.username}!</p>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>🔍 IDOR Demo - Profile Lookup</h3></div>
-        <div class="card-body">
-          <div class="row">
-            <input type="number" id="p-id" placeholder="User ID (1-4)" style="margin-bottom:0">
-            <button class="btn" onclick="doProfile()" style="width:auto">Fetch Profile</button>
-          </div>
-          <p class="hint">🔴 No authentication required - demonstrates Insecure Direct Object Reference</p>
-          <div class="rbox" id="p-box"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head"><h3>📋 Internal Audit Log (No Auth)</h3></div>
+        <div class="card-head"><h3>Audit Log (No Authentication)</h3></div>
         <div class="card-body">
           <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
-          <p class="hint">🔴 Should require admin privileges but doesn't!</p>
           <div class="rbox" id="a-box"></div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h3>📜 Server Logs (Vercel - Volatile)</h3>
+          <h3>Server Logs (Vercel - Volatile)</h3>
           <div>
             <button class="btn btn-ghost btn-sm" onclick="clearEvidence()">Clear Evidence</button>
             <button class="btn btn-sm" onclick="exportEvidence()" style="margin-left:5px">Export</button>
           </div>
         </div>
         <div class="card-body">
-          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">🔄 Refresh Server Logs</button>
+          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">Refresh Logs</button>
           <div id="server-logs-container" class="log-viewer">
-            <div class="log-entry">Click "Refresh Server Logs" to fetch logs from the API</div>
+            <div class="log-entry">Click "Refresh Logs" to fetch logs from the API</div>
           </div>
-          <p class="hint">⚠️ Logs are ephemeral - they disappear when serverless functions cold start! Incident response must be immediate.</p>
+          <p class="hint">Logs are ephemeral - they disappear when serverless functions cold start</p>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h3>📝 Evidence Log</h3>
+          <h3>Evidence Log</h3>
         </div>
         <div class="card-body">
           <div id="elog" class="log-viewer" style="max-height:300px">
@@ -416,7 +334,7 @@ function renderAppView() {
   const appDiv = document.getElementById('app-view');
   if (currentUser && currentUser.role === 'admin') {
     appDiv.innerHTML = renderAdminView();
-    fetchServerLogs(); // Auto-fetch logs when admin logs in
+    fetchServerLogs();
   } else {
     appDiv.innerHTML = renderLoginView();
   }
