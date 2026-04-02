@@ -72,10 +72,14 @@ export default function handler(req, res) {
   // 🔴 VULN A07: Token is just base64 - not signed
   const fakeToken = Buffer.from(`${username}:${user.role}:${Date.now()}:${authMethod}`).toString('base64');
 
+  // Return success message based on user role
+  let successMessage = 'Login Successful!';
+  if (user.role === 'admin') {
+    successMessage = 'Login Successful! Welcome Admin.';
+  }
+
   return res.status(200).json({
-    message: isLongPassword ? 
-      '✅ Login successful (BUFFER OVERFLOW VULNERABILITY - Long password accepted!)' : 
-      '✅ Login successful',
+    message: successMessage,
     warning: isLongPassword ? '🔴 Security vulnerability: System accepted extremely long password without validation' : undefined,
     token: fakeToken,
     user: {

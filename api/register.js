@@ -24,8 +24,8 @@ export default function handler(req, res) {
     username,
     password, // plaintext
     email,
-    role:     'staff',
-    salary:   0,
+    role:     'staff',  // Regular users get 'staff' role (not admin)
+    salary:   35000,
   };
 
   users.push(newUser);
@@ -33,7 +33,7 @@ export default function handler(req, res) {
 
   // 🔴 VULN A01: Returns full user object including password
   return res.status(201).json({
-    message: 'Account created',
+    message: 'Account created successfully! You can now login.',
     user:    newUser,
   });
 }
