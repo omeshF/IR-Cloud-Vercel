@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QA — IR Lab (Vercel - Serverless Demo)</title>
+<title>QA — IR Lab (Attack Simulation)</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -15,8 +15,9 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 #hud{position:fixed;top:0;left:0;right:0;height:54px;background:#0a0a0a;
   border-bottom:1px solid var(--border);display:flex;align-items:center;
   justify-content:space-between;padding:0 20px;z-index:200}
-#clock{font-size:26px;font-weight:700;font-family:monospace;color:var(--green)}
-#pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);transition:width 1s linear;z-index:200}
+#clock{font-size:26px;font-weight:700;font-family:monospace;color:var(--green);transition:color .3s}
+#clock.warn{color:var(--yellow)}#clock.crit{color:var(--red)}
+#pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);transition:width 1s linear,background .3s;z-index:200}
 .hud-label{font-size:11px;color:var(--muted);text-transform:uppercase}
 .hud-btns{display:flex;gap:8px}
 .wrap{max-width:1000px;margin:0 auto;padding:74px 20px 40px}
@@ -43,6 +44,7 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 .log-timestamp{color:var(--green)}
 .log-critical{color:var(--red)}
 .log-warning{color:var(--yellow)}
+.log-success{color:var(--green)}
 </style>
 </head>
 <body>
@@ -50,10 +52,10 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 <div id="hud">
   <div>
     <div class="hud-label">Incident Response Timer</div>
-    <div id="clock">25:00</div>
+    <div id="clock">07:00</div>
   </div>
   <div style="text-align:right">
-    <div class="hud-label">Vercel — Serverless (Stateless Demo)</div>
+    <div class="hud-label">Attack Simulation Lab</div>
     <div class="hud-btns">
       <button class="btn btn-ghost btn-sm" onclick="resetTimer()">Reset</button>
       <button class="btn btn-sm" id="tbtn" onclick="toggleTimer()">Start</button>
@@ -65,10 +67,12 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 <div class="wrap" id="app-view"></div>
 
 <script>
-// ========== TIMER FUNCTIONS ==========
-let remaining = 1500;
+// ========== TIMER FUNCTIONS (7 minutes = 420 seconds) ==========
+let remaining = 420; // 7 minutes in seconds
 let running = false;
 let iv = null;
+let attackTriggered = false;
+let warningShown = false;
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -77,9 +81,58 @@ function pad(n) {
 function drawTimer() {
   const m = Math.floor(remaining / 60);
   const s = remaining % 60;
-  document.getElementById('clock').textContent = pad(m) + ':' + pad(s);
-  const pct = (remaining / 1500) * 100;
-  document.getElementById('pbar').style.width = pct + '%';
+  const clockEl = document.getElementById('clock');
+  clockEl.textContent = pad(m) + ':' + pad(s);
+  
+  // Change color based on time remaining
+  if (remaining < 60) {
+    clockEl.className = 'crit';
+  } else if (remaining < 120) {
+    clockEl.className = 'warn';
+  } else {
+    clockEl.className = '';
+  }
+  
+  const pct = (remaining / 420) * 100;
+  const pb = document.getElementById('pbar');
+  pb.style.width = pct + '%';
+  
+  // Change progress bar color based on time
+  if (remaining < 60) {
+    pb.style.background = '#f87171';
+  } else if (remaining < 120) {
+    pb.style.background = '#facc15';
+  } else {
+    pb.style.background = '#4ade80';
+  }
+  
+  // Check for 4-minute mark (240 seconds remaining from 420 = 180 seconds elapsed = 3 minutes left)
+  // Actually 4th minute means when timer shows 03:00 (180 seconds remaining)
+  if (remaining <= 180 && !warningShown && currentUser && currentUser.role === 'admin') {
+    warningShown = true;
+    showAttackerLeftMessage();
+  }
+}
+
+function showAttackerLeftMessage() {
+  // Show popup message
+  alert('🚨 ATTACKER LEFT AND DELETED TRACES! 🚨\n\nThe attacker has completed their attack and wiped the logs. You are being logged out.\n\nAs an investigator, you must act FAST in serverless environments!');
+  
+  // Add to evidence log before logout
+  addEvidence('ATTACKER_LEFT', 'Attacker deleted traces and logged out. Investigation window closed!');
+  
+  // Clear server logs display
+  const container = document.getElementById('server-logs-container');
+  if (container) {
+    container.innerHTML = '<div class="log-entry log-critical">⚠️ LOGS DELETED BY ATTACKER ⚠️<br>Evidence has been wiped. In serverless environments, logs disappear when functions cold start!</div>';
+  }
+  
+  // Auto logout after message
+  setTimeout(() => {
+    if (currentUser) {
+      logout();
+    }
+  }, 2000);
 }
 
 function toggleTimer() {
@@ -94,6 +147,11 @@ function toggleTimer() {
         clearInterval(iv);
         running = false;
         document.getElementById('tbtn').textContent = 'Start';
+        // Timer ended - auto logout
+        if (currentUser) {
+          alert('⏰ Investigation time is over! You are being logged out.');
+          logout();
+        }
       }
     }, 1000);
   } else {
@@ -104,7 +162,8 @@ function toggleTimer() {
 function resetTimer() {
   clearInterval(iv);
   running = false;
-  remaining = 1500;
+  remaining = 420;
+  warningShown = false;
   drawTimer();
   document.getElementById('tbtn').textContent = 'Start';
 }
@@ -128,7 +187,8 @@ function show(elementId, message, isError) {
 function addEvidence(type, detail) {
   const now = new Date();
   const ts = now.toLocaleTimeString();
-  evidenceLog.push(`[${ts}] ${type}: ${detail}`);
+  const timeRemaining = Math.floor(remaining / 60) + ':' + pad(remaining % 60);
+  evidenceLog.push(`[${ts}] [Timer: ${timeRemaining}] ${type}: ${detail}`);
   updateEvidenceDisplay();
 }
 
@@ -171,11 +231,16 @@ async function doLogin() {
     if (response.ok) {
       currentUser = data.user;
       if (isLongPassword) {
-        addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password.substring(0, 50)}..." (${password.length} chars) - VULNERABILITY: Long password accepted!`);
+        addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password.substring(0, 50)}..." (${password.length} chars) - 🔴 VULNERABILITY: Long password accepted!`);
       } else {
         addEvidence('LOGIN SUCCESS', `User: ${username} (Role: ${data.user.role}) - Password used: "${password}"`);
       }
       renderAppView();
+      
+      // Start timer automatically on login
+      if (!running) {
+        toggleTimer();
+      }
     } else {
       addEvidence('LOGIN FAILED', `User: ${username} - Password: "${password}" - Error: ${data.error}`);
     }
@@ -199,7 +264,7 @@ async function doRegister() {
     const data = await response.json();
     show('r-box', `HTTP ${response.status}\n${JSON.stringify(data, null, 2)}`, !response.ok);
     if (response.ok) {
-      addEvidence('REGISTRATION', `New user: ${username} - Password: "${password}" (stored in plaintext!)`);
+      addEvidence('REGISTRATION', `New user: ${username} - Password: "${password}" (🔴 stored in plaintext!)`);
     }
   } catch (error) {
     show('r-box', 'Error: ' + error.message, true);
@@ -227,7 +292,7 @@ async function doProfile(userId) {
     }
     
     if (response.ok) {
-      addEvidence('USER LOOKUP', `Viewed user ID ${id}: ${data.username} - Password: "${data.password}" - Salary: $${data.salary}`);
+      addEvidence('🔴 IDOR EXPLOIT', `Viewed user ID ${id}: ${data.username} - Password: "${data.password}" - Salary: $${data.salary} - SSN: ${data.ssn || 'N/A'}`);
     } else {
       addEvidence('USER LOOKUP FAILED', `User ID ${id} not found`);
     }
@@ -241,8 +306,8 @@ async function doAudit() {
   try {
     const response = await fetch('/api/audit');
     const data = await response.json();
-    show('a-box', `HTTP ${response.status}\nTotal Logs: ${data.total}\nServer Info: Vercel Serverless\n\n${JSON.stringify(data.log, null, 2)}`, false);
-    addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries - No authentication required!`);
+    show('a-box', `HTTP ${response.status}\nTotal Logs: ${data.total}\n\n${JSON.stringify(data.log, null, 2)}`, false);
+    addEvidence('AUDIT LOG ACCESS', `Retrieved ${data.total} log entries - 🔴 No authentication required!`);
   } catch (error) {
     show('a-box', 'Error: ' + error.message, true);
   }
@@ -250,10 +315,8 @@ async function doAudit() {
 
 // ========== ATTACK SIMULATION ==========
 async function simulateFullAttack() {
-  await simulateSpecificAttack('full_attack');
-}
-
-async function simulateSpecificAttack(actionType) {
+  addEvidence('🚨 ATTACK STARTED', 'Malware simulation triggered at ' + new Date().toLocaleTimeString());
+  
   const resultBox = document.getElementById('attack-result');
   resultBox.style.display = 'block';
   resultBox.innerHTML = '🚨 Executing attack simulation... Please wait...';
@@ -263,7 +326,7 @@ async function simulateSpecificAttack(actionType) {
     const response = await fetch('/api/attack', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: actionType, target: 'all' })
+      body: JSON.stringify({ action: 'full_attack', target: 'all' })
     });
     
     const data = await response.json();
@@ -293,17 +356,11 @@ async function simulateSpecificAttack(actionType) {
         html += `  🎫 ${item.count} active sessions stolen<br>`;
       } else if (item.type === 'AUDIT_LOG') {
         html += `  📋 ${item.entries} audit log entries stolen<br>`;
-      } else if (item.type === 'BUFFER_OVERFLOW_PAYLOAD') {
-        html += `  💣 ${item.size} byte buffer overflow payload sent<br>`;
       }
     });
     
     html += '<br><strong style="color: #4ade80;">✅ Attack Complete!</strong><br>';
-    html += 'Check the logs above to see evidence of:<br>';
-    html += '  • MALWARE_TRIGGERED events<br>';
-    html += '  • DATA_EXFILTRATION records<br>';
-    html += '  • BRUTE_FORCE_SUCCESS attempts<br>';
-    html += '  • BACKDOOR_CREATED entries<br><br>';
+    html += 'Evidence logged. Check the Server Logs section above!<br><br>';
     
     html += '<strong style="color: #60a5fa;">🔒 Security Recommendations:</strong><br>';
     data.evidence.recommendations.forEach(rec => {
@@ -314,22 +371,30 @@ async function simulateSpecificAttack(actionType) {
     resultBox.innerHTML = html;
     resultBox.className = 'rbox';
     
+    addEvidence('✅ ATTACK COMPLETE', `Full attack executed - ${data.attack_summary.vulnerabilities_used.length} vulnerabilities exploited. ${data.attack_summary.details.dataExfiltrated.length} data records stolen.`);
+    
     setTimeout(() => {
       fetchServerLogs();
-      addEvidence('ATTACK_SIMULATED', `${actionType} attack executed - ${data.attack_summary.vulnerabilities_used.length} vulnerabilities exploited`);
     }, 1000);
     
   } catch (error) {
-    resultBox.innerHTML = '❌ Error: ' + error.message + '<br>Make sure the attack endpoint is deployed!';
+    resultBox.innerHTML = '❌ Error: ' + error.message;
     resultBox.className = 'rbox err';
+    addEvidence('❌ ATTACK FAILED', `Error: ${error.message}`);
   }
 }
 
 // ========== ADMIN FUNCTIONS ==========
 function logout() {
+  addEvidence('LOGOUT', 'User logged out. Investigation session ended.');
   currentUser = null;
   evidenceLog = [];
   renderAppView();
+  // Stop timer
+  if (running) {
+    toggleTimer();
+  }
+  resetTimer();
 }
 
 async function fetchServerLogs() {
@@ -345,11 +410,11 @@ async function fetchServerLogs() {
           let logClass = '';
           if (log.type === 'MALWARE_TRIGGERED' || log.type === 'DATA_EXFILTRATION') logClass = 'log-critical';
           else if (log.type === 'BRUTE_FORCE_SUCCESS' || log.type === 'BACKDOOR_CREATED') logClass = 'log-warning';
-          else if (log.type === 'LOGIN_SUCCESS') logClass = 'log-warning';
+          else if (log.type === 'LOGIN_SUCCESS') logClass = 'log-success';
           else if (log.type === 'LOGIN_FAIL') logClass = 'log-critical';
           
           let detailDisplay = JSON.stringify(log.detail, null, 2);
-          if (detailDisplay.length > 200) detailDisplay = detailDisplay.substring(0, 200) + '...';
+          if (detailDisplay.length > 300) detailDisplay = detailDisplay.substring(0, 300) + '...';
           
           return `
             <div class="log-entry ${logClass}">
@@ -361,7 +426,7 @@ async function fetchServerLogs() {
           `;
         }).join('');
       }
-      addEvidence('LOGS FETCHED', `Retrieved ${data.log.length} log entries from server`);
+      addEvidence('LOGS REFRESHED', `Retrieved ${data.log.length} log entries from server`);
     }
   } catch (error) {
     console.error('Failed to fetch logs:', error);
@@ -378,7 +443,7 @@ function renderLoginView() {
           <input type="text" id="l-user" placeholder="Username" value="admin">
           <input type="password" id="l-pass" placeholder="Password">
           <button class="btn" onclick="doLogin()">Sign In</button>
-          <p class="hint">Hint: Use "password123" for admin, or try a very long password (hold down 'A' key)</p>
+          <p class="hint">Use "password123" for admin access</p>
           <div class="rbox" id="l-box"></div>
         </div>
       </div>
@@ -407,7 +472,7 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <p>Welcome, ${currentUser?.username}!</p>
-          <p class="hint" style="color:var(--yellow)">⚠️ Vercel Serverless: Each API function has ISOLATED memory. Logs are fragmented!</p>
+          <p class="hint" style="color:var(--yellow)">⚠️ Timer started! You have 7 minutes to investigate. At 4 minutes, attacker will delete logs!</p>
         </div>
       </div>
 
@@ -418,86 +483,25 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <p style="color: #fca5a5; margin-bottom: 15px; font-size: 13px;">
-            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities.
-            Click it, then check the logs to see what happened!
+            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities. Click it
           </p>
           
-          <div class="row" style="gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-            <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626; flex: 1;">
-              💣 SIMULATE FULL ATTACK
-            </button>
-            <button class="btn btn-ghost" onclick="simulateSpecificAttack('harvest_users')" style="flex: 1;">
-              👤 Harvest Users
-            </button>
-            <button class="btn btn-ghost" onclick="simulateSpecificAttack('brute_force')" style="flex: 1;">
-              🔓 Brute Force
-            </button>
-          </div>
-          
-          <div class="row" style="gap: 10px; flex-wrap: wrap;">
-            <button class="btn btn-ghost" onclick="simulateSpecificAttack('steal_sessions')" style="flex: 1;">
-              🎫 Steal Sessions
-            </button>
-            <button class="btn btn-ghost" onclick="simulateSpecificAttack('access_audit')" style="flex: 1;">
-              📋 Steal Audit Log
-            </button>
-            <button class="btn btn-ghost" onclick="simulateSpecificAttack('create_backdoor')" style="flex: 1;">
-              🚪 Create Backdoor
-            </button>
-          </div>
+          <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626;">
+            💣 SIMULATE FULL ATTACK
+          </button>
           
           <div id="attack-result" class="rbox" style="display: none; margin-top: 15px; background: #1a0a0a; border-color: #dc2626;"></div>
         </div>
       </div>
 
-      <!-- Educational Comparison Card -->
-      <div class="card" style="border-color: var(--red);">
-        <div class="card-head" style="background: rgba(127, 29, 29, 0.2);">
-          <h3>🔬 FORENSICS LESSON: Serverless vs Persistent Server</h3>
-        </div>
-        <div class="card-body">
-          <div class="row" style="gap: 20px; align-items: stretch; flex-wrap: wrap;">
-            
-            <div style="flex: 1; background: #0a0a0a; border-radius: 8px; padding: 15px; border-left: 3px solid #f87171;">
-              <h4 style="color: #f87171; margin-bottom: 10px;">❌ Vercel (You are here)</h4>
-              <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">
-                <strong>What you see:</strong><br>
-                • Only AUDIT_ACCESSED logs<br>
-                • No LOGIN_SUCCESS records<br>
-                • No PROFILE_ACCESS entries<br>
-                • Attack logs may be MISSING!
-              </p>
-              <p style="font-size: 12px; color: #fca5a5;">
-                <strong>Why?</strong> Each API endpoint runs as a SEPARATE serverless function with ISOLATED memory.
-              </p>
-            </div>
-            
-            <div style="flex: 1; background: #0a2a1a; border-radius: 8px; padding: 15px; border-left: 3px solid #4ade80;">
-              <h4 style="color: #4ade80; margin-bottom: 10px;">✅ Render (Compare)</h4>
-              <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">
-                <strong>Complete view:</strong><br>
-                • ✓ All attack events visible<br>
-                • ✓ Complete forensic timeline<br>
-                • ✓ Shared memory across endpoints<br>
-                • ✓ Evidence persists
-              </p>
-              <p style="font-size: 12px; color: #86efac;">
-                <strong>Why?</strong> Single persistent Node.js process with SHARED memory.
-              </p>
-            </div>
-            
-          </div>
-        </div>
-      </div>
-
       <div class="card">
-        <div class="card-head"><h3>User Lookup (IDOR)</h3></div>
+        <div class="card-head"><h3>User Lookup (IDOR Vulnerability)</h3></div>
         <div class="card-body">
           <div class="row">
             <input type="number" id="p-id" placeholder="User ID (1, 2, 3, 4)" style="margin-bottom:0">
             <button class="btn" onclick="doProfile()" style="width:auto">Lookup User</button>
           </div>
-          <p class="hint">No authentication required! Try IDs 1-4</p>
+          <p class="hint">🔴 No authentication required! Try IDs 1-4</p>
           <div class="rbox" id="p-box"></div>
         </div>
       </div>
@@ -506,7 +510,7 @@ function renderAdminView() {
         <div class="card-head"><h3>Audit Log (No Authentication)</h3></div>
         <div class="card-body">
           <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
-          <p class="hint">🔴 On Vercel, logs are fragmented across functions!</p>
+          <p class="hint">🔴 Internal audit log exposed with no authentication!</p>
           <div class="rbox" id="a-box"></div>
         </div>
       </div>
@@ -546,7 +550,8 @@ function renderAdminView() {
             1. What vulnerabilities were exploited?<br>
             2. What data was stolen?<br>
             3. Was a backdoor account created?<br>
-            4. How would you fix these vulnerabilities?
+            4. How would you fix these vulnerabilities?<br>
+            5. Why did the attacker delete logs at 4 minutes?
             </code>
           </div>
         </div>
