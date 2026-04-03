@@ -57,14 +57,14 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 <div id="hud">
   <div class="timer-container">
     <div class="timer-box">
-      <div class="timer-label">🔍 Investigation Timer</div>
+      <div class="timer-label">Investigation Timer</div>
       <div class="timer-value" id="investigation-timer">07:00</div>
       <div class="timer-warning" id="investigation-warning"></div>
     </div>
     <div class="timer-box">
-      <div class="timer-label">⚠️ Vercel Cold Start Timer</div>
+      <div class="timer-label">Vercel Cold Start Timer</div>
       <div class="timer-value" id="coldstart-timer">05:00</div>
-      <div class="timer-warning" id="coldstart-warning">Logs will be DELETED!</div>
+      <div class="timer-warning" id="coldstart-warning">Logs will be DELETED</div>
     </div>
     <div class="button-group">
       <button class="btn btn-ghost btn-sm" onclick="resetInvestigationTimer()">Reset</button>
@@ -77,13 +77,12 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 <div class="wrap" id="app-view"></div>
 
 <script>
-// ========== INVESTIGATION TIMER (7 minutes = 420 seconds) ==========
+// ========== TIMER FUNCTIONS ==========
 let investigationRemaining = 420;
 let investigationRunning = false;
 let investigationIv = null;
 let attackerLeftShown = false;
 
-// ========== COLD START TIMER (5 minutes = 300 seconds) ==========
 let coldstartRemaining = 300;
 let coldstartRunning = true;
 let coldstartIv = null;
@@ -93,7 +92,6 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
-// Draw both timers
 function drawTimers() {
   // Investigation timer
   const invM = Math.floor(investigationRemaining / 60);
@@ -103,18 +101,17 @@ function drawTimers() {
   
   if (investigationRemaining < 60) {
     invEl.style.color = '#f87171';
-    document.getElementById('investigation-warning').innerHTML = '⚠️ CRITICAL - Attacker will delete logs!';
+    document.getElementById('investigation-warning').innerHTML = 'CRITICAL - Attacker will delete logs';
     document.getElementById('investigation-warning').style.color = '#f87171';
   } else if (investigationRemaining < 120) {
     invEl.style.color = '#facc15';
-    document.getElementById('investigation-warning').innerHTML = '⚠️ Attacker preparing to delete logs';
+    document.getElementById('investigation-warning').innerHTML = 'Attacker preparing to delete logs';
     document.getElementById('investigation-warning').style.color = '#facc15';
   } else {
     invEl.style.color = '#4ade80';
     document.getElementById('investigation-warning').innerHTML = '';
   }
   
-  // Progress bar (based on investigation timer)
   const pct = (investigationRemaining / 420) * 100;
   const pb = document.getElementById('pbar');
   pb.style.width = pct + '%';
@@ -127,7 +124,7 @@ function drawTimers() {
     pb.style.background = '#4ade80';
   }
   
-  // Cold start timer (5 minutes = 300 seconds)
+  // Cold start timer
   const csM = Math.floor(coldstartRemaining / 60);
   const csS = coldstartRemaining % 60;
   const csEl = document.getElementById('coldstart-timer');
@@ -135,11 +132,11 @@ function drawTimers() {
   
   if (coldstartRemaining < 60) {
     csEl.style.color = '#f87171';
-    document.getElementById('coldstart-warning').innerHTML = '🔴 IMMINENT - Serverless function will COLD START!';
+    document.getElementById('coldstart-warning').innerHTML = 'IMMINENT - Serverless function will COLD START';
     document.getElementById('coldstart-warning').style.color = '#f87171';
   } else if (coldstartRemaining < 120) {
     csEl.style.color = '#facc15';
-    document.getElementById('coldstart-warning').innerHTML = '⚠️ Logs will be DELETED soon!';
+    document.getElementById('coldstart-warning').innerHTML = 'Logs will be DELETED soon';
     document.getElementById('coldstart-warning').style.color = '#facc15';
   } else {
     csEl.style.color = '#60a5fa';
@@ -147,59 +144,53 @@ function drawTimers() {
     document.getElementById('coldstart-warning').style.color = '#6b7280';
   }
   
-  // Check for attacker deletion (4 minute mark = 240 seconds elapsed = 180 remaining)
   if (investigationRemaining <= 180 && !attackerLeftShown && currentUser && currentUser.role === 'admin') {
     attackerLeftShown = true;
     showAttackerLeftMessage();
   }
   
-  // Check for cold start (when timer reaches 0)
   if (coldstartRemaining <= 0 && !coldstartWarningShown) {
     coldstartWarningShown = true;
     showColdStartMessage();
   }
 }
 
-// Attacker deleted logs message
 function showAttackerLeftMessage() {
-  addEvidence('🚨 ATTACKER ACTION', 'Attacker deleted traces and logged out! Investigation window closing...');
+  addEvidence('ATTACKER ACTION', 'Attacker deleted traces and logged out. Investigation window closing.');
   
   const container = document.getElementById('server-logs-container');
   if (container) {
-    container.innerHTML = '<div class="log-entry log-critical">⚠️ LOGS DELETED BY ATTACKER ⚠️<br>The attacker manually wiped the logs at the 4-minute mark!</div>';
+    container.innerHTML = '<div class="log-entry log-critical">LOGS DELETED BY ATTACKER - The attacker manually wiped the logs at the 4-minute mark</div>';
   }
   
-  addEvidence('⚠️ EVIDENCE LOST', 'Attacker deleted server logs. In a real incident, critical evidence would be gone!');
+  addEvidence('EVIDENCE LOST', 'Attacker deleted server logs. In a real incident, critical evidence would be gone.');
   
   setTimeout(() => {
     if (currentUser) {
-      alert('🚨 ATTACKER LEFT AND DELETED TRACES! 🚨\n\nThe attacker has completed their attack and wiped the logs. You are being logged out.\n\nAs an investigator, you must act FAST in serverless environments!');
+      alert('ATTACKER LEFT AND DELETED TRACES!\n\nThe attacker has completed their attack and wiped the logs. You are being logged out.\n\nAs an investigator, you must act FAST in serverless environments.');
       logout();
     }
   }, 2000);
 }
 
-// Vercel cold start message
 function showColdStartMessage() {
-  addEvidence('⚠️ SERVERLESS COLD START', 'Vercel function is cold starting! ALL in-memory logs are being DELETED!');
+  addEvidence('SERVERLESS COLD START', 'Vercel function is cold starting. ALL in-memory logs are being DELETED.');
   
   const container = document.getElementById('server-logs-container');
   if (container) {
-    container.innerHTML = '<div class="log-entry log-critical">🔴 VERCEL COLD START OCCURRED 🔴<br>The serverless function restarted. ALL logs have been wiped from memory!<br><br>This demonstrates why serverless platforms are challenging for incident response - evidence disappears automatically!</div>';
+    container.innerHTML = '<div class="log-entry log-critical">VERCEL COLD START OCCURRED - The serverless function restarted. ALL logs have been wiped from memory.\n\nThis demonstrates why serverless platforms are challenging for incident response - evidence disappears automatically.</div>';
   }
   
-  addEvidence('💀 EVIDENCE DESTROYED', 'Serverless cold start wiped all logs. No forensic evidence remains!');
+  addEvidence('EVIDENCE DESTROYED', 'Serverless cold start wiped all logs. No forensic evidence remains.');
   
-  // Auto logout after cold start
   setTimeout(() => {
     if (currentUser) {
-      alert('🔴 VERCEL COLD START! 🔴\n\nThe serverless function has restarted and ALL logs have been wiped from memory.\n\nYou are being logged out. This demonstrates why persistent servers are better for security investigations!');
+      alert('VERCEL COLD START!\n\nThe serverless function has restarted and ALL logs have been wiped from memory.\n\nYou are being logged out. This demonstrates why persistent servers are better for security investigations.');
       logout();
     }
   }, 3000);
 }
 
-// Investigation timer controls
 function toggleInvestigationTimer() {
   investigationRunning = !investigationRunning;
   document.getElementById('tbtn').textContent = investigationRunning ? 'Pause' : 'Start';
@@ -213,7 +204,7 @@ function toggleInvestigationTimer() {
         investigationRunning = false;
         document.getElementById('tbtn').textContent = 'Start';
         if (currentUser) {
-          alert('⏰ Investigation time is over! You are being logged out.');
+          alert('Investigation time is over. You are being logged out.');
           logout();
         }
       }
@@ -232,7 +223,6 @@ function resetInvestigationTimer() {
   document.getElementById('tbtn').textContent = 'Start';
 }
 
-// Cold start timer (runs automatically)
 function startColdStartTimer() {
   coldstartIv = setInterval(() => {
     if (coldstartRemaining > 0) {
@@ -338,7 +328,7 @@ async function doRegister() {
     const data = await response.json();
     show('r-box', 'HTTP ' + response.status + '\n' + JSON.stringify(data, null, 2), !response.ok);
     if (response.ok) {
-      addEvidence('REGISTRATION', 'New user: ' + username + ' - Password: "' + password + '" (🔴 stored in plaintext!)');
+      addEvidence('REGISTRATION', 'New user: ' + username + ' - Password: "' + password + '" (stored in plaintext)');
     }
   } catch (error) {
     show('r-box', 'Error: ' + error.message, true);
@@ -361,7 +351,7 @@ async function doProfile(userId) {
     }
     
     if (response.ok) {
-      addEvidence('🔴 IDOR EXPLOIT', 'Viewed user ID ' + id + ': ' + data.username + ' - Password: "' + data.password + '" - Credit Card: ' + (data.credit_card || 'N/A') + ' - SSN: ' + (data.ssn || 'N/A'));
+      addEvidence('IDOR EXPLOIT', 'Viewed user ID ' + id + ': ' + data.username + ' - Password: "' + data.password + '" - Credit Card: ' + (data.credit_card || 'N/A') + ' - SSN: ' + (data.ssn || 'N/A'));
     }
   } catch (error) {
     if (document.getElementById('p-box')) show('p-box', 'Error: ' + error.message, true);
@@ -373,7 +363,7 @@ async function doAudit() {
     const response = await fetch('/api/audit');
     const data = await response.json();
     show('a-box', 'HTTP ' + response.status + '\nTotal Logs: ' + (data.total || 0) + '\n\n' + JSON.stringify(data.log || [], null, 2), false);
-    addEvidence('AUDIT LOG ACCESS', 'Retrieved ' + (data.total || 0) + ' log entries - 🔴 No authentication required!');
+    addEvidence('AUDIT LOG ACCESS', 'Retrieved ' + (data.total || 0) + ' log entries - No authentication required');
   } catch (error) {
     show('a-box', 'Error: ' + error.message, true);
   }
@@ -381,7 +371,7 @@ async function doAudit() {
 
 // ========== ATTACK SIMULATION ==========
 async function simulateFullAttack() {
-  addEvidence('🚨 ATTACK STARTED', 'Malware simulation triggered - Beginning 8-step attack');
+  addEvidence('ATTACK STARTED', 'Malware simulation triggered - Beginning 8-step attack');
   
   try {
     const response = await fetch('/api/attack', {
@@ -397,43 +387,33 @@ async function simulateFullAttack() {
       for (let i = 0; i < attackLines.length; i++) {
         const line = attackLines[i];
         if (line.trim().length > 0) {
-          addEvidence('🔍 ATTACK DETAIL', line);
+          // Skip summary lines and recommendation lines
+          const shouldSkip = line.includes('ATTACK SUMMARY') || 
+                            line.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━') ||
+                            line.includes('Total users compromised') ||
+                            line.includes('Passwords stolen') ||
+                            line.includes('Credit cards stolen') ||
+                            line.includes('SSNs stolen') ||
+                            line.includes('Backdoor account created') ||
+                            line.includes('Audit logs stolen') ||
+                            line.includes('Vulnerabilities exploited') ||
+                            line.includes('STOLEN DATA SUMMARY') ||
+                            line.includes('BACKDOOR ACCOUNT') ||
+                            line.includes('SECURITY RECOMMENDATIONS') ||
+                            line.includes('RECOMMENDATION') ||
+                            line.includes('ATTACK COMPLETE');
+          
+          if (!shouldSkip) {
+            addEvidence('ATTACK DETAIL', line);
+          }
         }
       }
     }
     
-    if (data.evidence && data.evidence.stolen_passwords) {
-      addEvidence('📊 STOLEN DATA SUMMARY', 'Total users compromised: ' + data.evidence.stolen_passwords.length);
-      data.evidence.stolen_passwords.forEach(function(user) {
-        addEvidence('👤 STOLEN USER', user.username + ': Password="' + user.password + '" | Credit Card: ' + (user.credit_card || 'N/A') + ' | SSN: ' + (user.ssn || 'N/A'));
-      });
-    }
-    
-    if (data.evidence && data.evidence.backdoor_credentials) {
-      addEvidence('🚪 BACKDOOR ACCOUNT', 'Username: ' + data.evidence.backdoor_credentials.username + ' | Password: ' + data.evidence.backdoor_credentials.password);
-    }
-    
-    if (data.evidence && data.evidence.vulnerabilities) {
-      addEvidence('🔴 VULNERABILITIES EXPLOITED', data.evidence.vulnerabilities.length + ' vulnerabilities found');
-      data.evidence.vulnerabilities.forEach(function(v) {
-        addEvidence('  • VULNERABILITY', v);
-      });
-    }
-    
-    if (data.evidence && data.evidence.recommendations) {
-      addEvidence('🔒 SECURITY RECOMMENDATIONS', 'Implement these fixes:');
-      data.evidence.recommendations.forEach(function(rec) {
-        addEvidence('  • RECOMMENDATION', rec);
-      });
-    }
-    
-    var compromisedCount = (data.attack_summary && data.attack_summary.data_stolen && data.attack_summary.data_stolen.users_compromised) ? data.attack_summary.data_stolen.users_compromised : 'Multiple';
-    addEvidence('✅ ATTACK COMPLETE', 'Full attack executed. ' + compromisedCount + ' users compromised, backdoor created.');
-    
     const resultBox = document.getElementById('attack-result');
     if (resultBox) {
       resultBox.style.display = 'block';
-      resultBox.innerHTML = '✅ Attack completed successfully! Check the Evidence Log for all details.';
+      resultBox.innerHTML = 'Attack completed successfully. Check the Evidence Log for details.';
       resultBox.className = 'rbox success';
       setTimeout(function() {
         resultBox.style.display = 'none';
@@ -447,7 +427,7 @@ async function simulateFullAttack() {
     }, 1000);
     
   } catch (error) {
-    addEvidence('❌ ATTACK FAILED', 'Error: ' + error.message);
+    addEvidence('ATTACK FAILED', 'Error: ' + error.message);
   }
 }
 
@@ -470,7 +450,7 @@ async function fetchServerLogs() {
     const container = document.getElementById('server-logs-container');
     if (container && data.log) {
       if (data.log.length === 0) {
-        container.innerHTML = '<div class="log-entry">⚠️ No logs found. Click the attack button to generate evidence!</div>';
+        container.innerHTML = '<div class="log-entry">No logs found. Click the attack button to generate evidence.</div>';
       } else {
         container.innerHTML = data.log.map(function(log) {
           let logClass = '';
@@ -503,15 +483,15 @@ function renderLoginView() {
     <div style="max-width:600px;margin:0 auto">
       <div class="card" style="border-color: #dc2626; margin-bottom: 20px;">
         <div class="card-head" style="background: rgba(220, 38, 38, 0.2);">
-          <h3 style="color: #fca5a5;">🚨 MALWARE SIMULATION - Click to see attack in action</h3>
+          <h3 style="color: #fca5a5;">MALWARE SIMULATION - Click to see attack in action</h3>
         </div>
         <div class="card-body">
           <p style="color: #fca5a5; margin-bottom: 15px; font-size: 14px;">
-            ⚠️ This button simulates a real malware attack that exploits multiple vulnerabilities. Click it to see the attack in action!
+            This button simulates a real malware attack that exploits multiple vulnerabilities. Click it to see the attack in action.
           </p>
           
           <button class="btn" onclick="simulateFullAttack()" style="background: #dc2626; padding: 12px; font-size: 16px; font-weight: bold;">
-            💣 SIMULATE FULL ATTACK
+            SIMULATE FULL ATTACK
           </button>
           
           <div id="attack-result" class="rbox" style="display: none; margin-top: 15px;"></div>
@@ -553,7 +533,7 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <p>Welcome, ${currentUser ? currentUser.username : 'Admin'}!</p>
-          <p class="hint" style="color:var(--yellow)">⚠️ Two threats to evidence: Attacker deletes logs at 4 min, Vercel cold start at 5 min!</p>
+          <p class="hint" style="color:var(--yellow)">Two threats to evidence: Attacker deletes logs at 4 min, Vercel cold start at 5 min</p>
         </div>
       </div>
 
@@ -564,7 +544,7 @@ function renderAdminView() {
             <input type="number" id="p-id" placeholder="User ID (1, 2, 3, 4)" style="margin-bottom:0">
             <button class="btn" onclick="doProfile()" style="width:auto">Lookup User</button>
           </div>
-          <p class="hint">🔴 No authentication required! Try IDs 1-4 to see credit cards and SSNs</p>
+          <p class="hint">No authentication required. Try IDs 1-4 to see credit cards and SSNs</p>
           <div class="rbox" id="p-box"></div>
         </div>
       </div>
@@ -573,21 +553,21 @@ function renderAdminView() {
         <div class="card-head"><h3>Audit Log (No Authentication)</h3></div>
         <div class="card-body">
           <button class="btn btn-danger" onclick="doAudit()">Access /api/audit</button>
-          <p class="hint">🔴 Internal audit log exposed with no authentication!</p>
+          <p class="hint">Internal audit log exposed with no authentication</p>
           <div class="rbox" id="a-box"></div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h3>📊 Server Logs (Attack Evidence)</h3>
+          <h3>Server Logs (Attack Evidence)</h3>
           <div>
             <button class="btn btn-ghost btn-sm" onclick="clearEvidence()">Clear Evidence</button>
             <button class="btn btn-sm" onclick="exportEvidence()" style="margin-left:5px">Export</button>
           </div>
         </div>
         <div class="card-body">
-          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">🔄 Refresh Logs</button>
+          <button class="btn" onclick="fetchServerLogs()" style="margin-bottom:10px">Refresh Logs</button>
           <div id="server-logs-container" class="log-viewer">
             <div class="log-entry">Click "Refresh Logs" - Attack evidence will appear here after simulation</div>
           </div>
@@ -600,7 +580,7 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <div id="elog" class="log-viewer" style="max-height:400px; font-family:monospace; font-size:11px">
-            ${evidenceLog.length > 0 ? evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; white-space:pre-wrap">${log}</div>`).join('') : '<div>No evidence collected yet - Click "SIMULATE FULL ATTACK" to begin!</div>'}
+            ${evidenceLog.length > 0 ? evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; white-space:pre-wrap">${log}</div>`).join('') : '<div>No evidence collected yet - Click "SIMULATE FULL ATTACK" to begin</div>'}
           </div>
         </div>
       </div>
