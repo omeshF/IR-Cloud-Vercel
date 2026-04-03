@@ -12,29 +12,34 @@
   --yellow:#facc15;--blue:#60a5fa;--accent:#1d4ed8;
 }
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-#hud{position:fixed;top:0;left:0;right:0;height:54px;background:#0a0a0a;
-  border-bottom:1px solid var(--border);display:flex;align-items:center;
-  justify-content:space-between;padding:0 20px;z-index:200}
-#clock{font-size:26px;font-weight:700;font-family:monospace;color:var(--green);transition:color .3s}
-#clock.warn{color:var(--yellow)}#clock.crit{color:var(--red)}
-#pbar{position:fixed;top:54px;left:0;height:3px;background:var(--green);transition:width 1s linear,background .3s;z-index:200}
-.hud-label{font-size:11px;color:var(--muted);text-transform:uppercase}
-.hud-btns{display:flex;gap:8px}
-.wrap{max-width:1200px;margin:0 auto;padding:74px 20px 40px}
+#hud{position:fixed;top:0;left:0;right:0;background:#0a0a0a;
+  border-bottom:1px solid var(--border);z-index:200}
+.timer-container{display:flex;justify-content:space-between;padding:8px 20px;border-bottom:1px solid #1a1a1a}
+.timer-box{text-align:center}
+.timer-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.timer-value{font-size:20px;font-weight:700;font-family:monospace}
+.timer-warning{font-size:9px;color:var(--yellow);margin-top:2px}
+#investigation-timer{color:var(--green)}
+#coldstart-timer{color:var(--blue)}
+#pbar{position:fixed;top:84px;left:0;height:3px;background:var(--green);transition:width 1s linear;z-index:200}
+.hud-btns{position:fixed;top:8px;right:20px;display:flex;gap:8px;z-index:200}
+.btn{background:#1d4ed8;color:#fff;border:none;cursor:pointer;font-weight:500;padding:5px 12px;border-radius:6px;font-size:12px}
+.btn-ghost{background:#333;color:#fff}
+.btn-sm{padding:4px 10px}
+.wrap{max-width:1200px;margin:0 auto;padding:100px 20px 40px}
 .card{background:var(--surface);border:1px solid #2a2a2a;border-radius:8px;margin-bottom:16px}
 .card-head{padding:11px 18px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center}
 .card-head h3{font-size:13px;font-weight:500;color:var(--muted)}
 .card-body{padding:18px}
 input, button{width:100%;margin-bottom:10px;padding:8px;border-radius:6px}
 input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:monospace}
-.btn{background:#1d4ed8;color:#fff;border:none;cursor:pointer;font-weight:500}
 .btn-danger{background:#7f1d1d}
-.btn-ghost{background:#333;color:#fff}
-.btn-sm{padding:5px 12px;width:auto;margin-bottom:0}
+.btn-warning{background:#78350f;color:#fde68a}
 .rbox{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:11px;margin-top:10px;
   font-family:monospace;font-size:11px;white-space:pre-wrap;display:none;max-height:500px;overflow-y:auto}
 .rbox.err{color:var(--red)}
 .rbox.info{color:var(--blue)}
+.rbox.success{color:var(--green)}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
 .row{display:flex;gap:8px;align-items:center}
 .row button{width:auto}
@@ -50,16 +55,21 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 <body>
 
 <div id="hud">
-  <div>
-    <div class="hud-label">Incident Response Timer</div>
-    <div id="clock">07:00</div>
-  </div>
-  <div style="text-align:right">
-    <div class="hud-label">Attack Simulation Lab</div>
-    <div class="hud-btns">
-      <button class="btn btn-ghost btn-sm" onclick="resetTimer()">Reset</button>
-      <button class="btn btn-sm" id="tbtn" onclick="toggleTimer()">Start</button>
+  <div class="timer-container">
+    <div class="timer-box">
+      <div class="timer-label">🔍 Investigation Timer</div>
+      <div class="timer-value" id="investigation-timer">07:00</div>
+      <div class="timer-warning" id="investigation-warning"></div>
     </div>
+    <div class="timer-box">
+      <div class="timer-label">⚠️ Vercel Cold Start Timer</div>
+      <div class="timer-value" id="coldstart-timer">15:00</div>
+      <div class="timer-warning" id="coldstart-warning">Logs will be DELETED!</div>
+    </div>
+  </div>
+  <div class="hud-btns">
+    <button class="btn btn-ghost btn-sm" onclick="resetInvestigationTimer()">Reset Investigation</button>
+    <button class="btn btn-sm" id="tbtn" onclick="toggleInvestigationTimer()">Start</button>
   </div>
 </div>
 <div id="pbar" style="width:100%"></div>
@@ -67,76 +77,138 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
 <div class="wrap" id="app-view"></div>
 
 <script>
-// ========== TIMER FUNCTIONS (7 minutes = 420 seconds) ==========
-let remaining = 420;
-let running = false;
-let iv = null;
-let warningShown = false;
+// ========== INVESTIGATION TIMER (7 minutes = 420 seconds) ==========
+let investigationRemaining = 420;
+let investigationRunning = false;
+let investigationIv = null;
+let attackerLeftShown = false;
+
+// ========== COLD START TIMER (15 minutes = 900 seconds) ==========
+let coldstartRemaining = 900;
+let coldstartRunning = true;
+let coldstartIv = null;
+let coldstartWarningShown = false;
 
 function pad(n) {
   return String(n).padStart(2, '0');
 }
 
-function drawTimer() {
-  const m = Math.floor(remaining / 60);
-  const s = remaining % 60;
-  const clockEl = document.getElementById('clock');
-  clockEl.textContent = pad(m) + ':' + pad(s);
+// Draw both timers
+function drawTimers() {
+  // Investigation timer
+  const invM = Math.floor(investigationRemaining / 60);
+  const invS = investigationRemaining % 60;
+  const invEl = document.getElementById('investigation-timer');
+  invEl.textContent = pad(invM) + ':' + pad(invS);
   
-  if (remaining < 60) {
-    clockEl.className = 'crit';
-  } else if (remaining < 120) {
-    clockEl.className = 'warn';
+  if (investigationRemaining < 60) {
+    invEl.style.color = '#f87171';
+    document.getElementById('investigation-warning').innerHTML = '⚠️ CRITICAL - Attacker will delete logs!';
+  } else if (investigationRemaining < 120) {
+    invEl.style.color = '#facc15';
+    document.getElementById('investigation-warning').innerHTML = '⚠️ Attacker preparing to delete logs';
   } else {
-    clockEl.className = '';
+    invEl.style.color = '#4ade80';
+    document.getElementById('investigation-warning').innerHTML = '';
   }
   
-  const pct = (remaining / 420) * 100;
+  // Progress bar (based on investigation timer)
+  const pct = (investigationRemaining / 420) * 100;
   const pb = document.getElementById('pbar');
   pb.style.width = pct + '%';
   
-  if (remaining < 60) {
+  if (investigationRemaining < 60) {
     pb.style.background = '#f87171';
-  } else if (remaining < 120) {
+  } else if (investigationRemaining < 120) {
     pb.style.background = '#facc15';
   } else {
     pb.style.background = '#4ade80';
   }
   
-  if (remaining <= 180 && !warningShown && currentUser && currentUser.role === 'admin') {
-    warningShown = true;
+  // Cold start timer
+  const csM = Math.floor(coldstartRemaining / 60);
+  const csS = coldstartRemaining % 60;
+  const csEl = document.getElementById('coldstart-timer');
+  csEl.textContent = pad(csM) + ':' + pad(csS);
+  
+  if (coldstartRemaining < 300) {
+    csEl.style.color = '#f87171';
+    document.getElementById('coldstart-warning').innerHTML = '🔴 IMMINENT - Serverless function will COLD START!';
+    document.getElementById('coldstart-warning').style.color = '#f87171';
+  } else if (coldstartRemaining < 600) {
+    csEl.style.color = '#facc15';
+    document.getElementById('coldstart-warning').innerHTML = '⚠️ Logs will be DELETED soon!';
+    document.getElementById('coldstart-warning').style.color = '#facc15';
+  } else {
+    csEl.style.color = '#60a5fa';
+    document.getElementById('coldstart-warning').innerHTML = 'Logs will be DELETED on cold start';
+    document.getElementById('coldstart-warning').style.color = '#6b7280';
+  }
+  
+  // Check for attacker deletion (4 minute mark = 240 seconds elapsed = 180 remaining)
+  if (investigationRemaining <= 180 && !attackerLeftShown && currentUser && currentUser.role === 'admin') {
+    attackerLeftShown = true;
     showAttackerLeftMessage();
+  }
+  
+  // Check for cold start (when timer reaches 0)
+  if (coldstartRemaining <= 0 && !coldstartWarningShown) {
+    coldstartWarningShown = true;
+    showColdStartMessage();
   }
 }
 
+// Attacker deleted logs message
 function showAttackerLeftMessage() {
-  alert('🚨 ATTACKER LEFT AND DELETED TRACES! 🚨\n\nThe attacker has completed their attack and wiped the logs. You are being logged out.\n\nAs an investigator, you must act FAST in serverless environments!');
-  
-  addEvidence('ATTACKER_LEFT', 'Attacker deleted traces and logged out. Investigation window closed!');
+  addEvidence('🚨 ATTACKER ACTION', 'Attacker deleted traces and logged out! Investigation window closing...');
   
   const container = document.getElementById('server-logs-container');
   if (container) {
-    container.innerHTML = '<div class="log-entry log-critical">⚠️ LOGS DELETED BY ATTACKER ⚠️<br>Evidence has been wiped. In serverless environments, logs disappear when functions cold start!</div>';
+    container.innerHTML = '<div class="log-entry log-critical">⚠️ LOGS DELETED BY ATTACKER ⚠️<br>The attacker manually wiped the logs at the 4-minute mark!</div>';
   }
+  
+  addEvidence('⚠️ EVIDENCE LOST', 'Attacker deleted server logs. In a real incident, critical evidence would be gone!');
   
   setTimeout(() => {
     if (currentUser) {
+      alert('🚨 ATTACKER LEFT AND DELETED TRACES! 🚨\n\nThe attacker has completed their attack and wiped the logs. You are being logged out.\n\nAs an investigator, you must act FAST in serverless environments!');
       logout();
     }
   }, 2000);
 }
 
-function toggleTimer() {
-  running = !running;
-  document.getElementById('tbtn').textContent = running ? 'Pause' : 'Start';
-  if (running) {
-    iv = setInterval(() => {
-      if (remaining > 0) {
-        remaining--;
-        drawTimer();
+// Vercel cold start message
+function showColdStartMessage() {
+  addEvidence('⚠️ SERVERLESS COLD START', 'Vercel function is cold starting! ALL in-memory logs are being DELETED!');
+  
+  const container = document.getElementById('server-logs-container');
+  if (container) {
+    container.innerHTML = '<div class="log-entry log-critical">🔴 VERACEL COLD START OCCURRED 🔴<br>The serverless function restarted. ALL logs have been wiped from memory!<br><br>This demonstrates why serverless platforms are challenging for incident response - evidence disappears automatically!</div>';
+  }
+  
+  addEvidence('💀 EVIDENCE DESTROYED', 'Serverless cold start wiped all logs. No forensic evidence remains!');
+  
+  // Auto logout after cold start
+  setTimeout(() => {
+    if (currentUser) {
+      alert('🔴 VERACEL COLD START! 🔴\n\nThe serverless function has restarted and ALL logs have been wiped from memory.\n\nYou are being logged out. This demonstrates why persistent servers are better for security investigations!');
+      logout();
+    }
+  }, 3000);
+}
+
+// Investigation timer controls
+function toggleInvestigationTimer() {
+  investigationRunning = !investigationRunning;
+  document.getElementById('tbtn').textContent = investigationRunning ? 'Pause' : 'Start';
+  if (investigationRunning) {
+    investigationIv = setInterval(() => {
+      if (investigationRemaining > 0) {
+        investigationRemaining--;
+        drawTimers();
       } else {
-        clearInterval(iv);
-        running = false;
+        clearInterval(investigationIv);
+        investigationRunning = false;
         document.getElementById('tbtn').textContent = 'Start';
         if (currentUser) {
           alert('⏰ Investigation time is over! You are being logged out.');
@@ -145,20 +217,33 @@ function toggleTimer() {
       }
     }, 1000);
   } else {
-    clearInterval(iv);
+    clearInterval(investigationIv);
   }
 }
 
-function resetTimer() {
-  clearInterval(iv);
-  running = false;
-  remaining = 420;
-  warningShown = false;
-  drawTimer();
+function resetInvestigationTimer() {
+  clearInterval(investigationIv);
+  investigationRunning = false;
+  investigationRemaining = 420;
+  attackerLeftShown = false;
+  drawTimers();
   document.getElementById('tbtn').textContent = 'Start';
 }
 
-drawTimer();
+// Cold start timer (runs automatically)
+function startColdStartTimer() {
+  coldstartIv = setInterval(() => {
+    if (coldstartRemaining > 0) {
+      coldstartRemaining--;
+      drawTimers();
+    } else {
+      clearInterval(coldstartIv);
+    }
+  }, 1000);
+}
+
+startColdStartTimer();
+drawTimers();
 
 // ========== GLOBAL STATE ==========
 let currentUser = null;
@@ -176,27 +261,19 @@ function show(elementId, message, isError) {
 function addEvidence(type, detail) {
   const now = new Date();
   const ts = now.toLocaleTimeString();
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
-  const timeRemaining = minutes + ':' + pad(seconds);
-  evidenceLog.push(`[${ts}] [Timer: ${timeRemaining}] ${type}: ${detail}`);
-  updateEvidenceDisplay();
-}
-
-function addEvidenceStep(stepNumber, stepDetail) {
-  const now = new Date();
-  const ts = now.toLocaleTimeString();
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
-  const timeRemaining = minutes + ':' + pad(seconds);
-  evidenceLog.push(`[${ts}] [Timer: ${timeRemaining}] 📍 ${stepNumber}: ${stepDetail}`);
+  const invMinutes = Math.floor(investigationRemaining / 60);
+  const invSeconds = investigationRemaining % 60;
+  const csMinutes = Math.floor(coldstartRemaining / 60);
+  const csSeconds = coldstartRemaining % 60;
+  const timeInfo = `Inv: ${invMinutes}:${pad(invSeconds)} | CS: ${csMinutes}:${pad(csSeconds)}`;
+  evidenceLog.push(`[${ts}] [${timeInfo}] ${type}: ${detail}`);
   updateEvidenceDisplay();
 }
 
 function updateEvidenceDisplay() {
   const elog = document.getElementById('elog');
   if (elog) {
-    elog.innerHTML = evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; font-family:monospace; font-size:11px">${log}</div>`).join('');
+    elog.innerHTML = evidenceLog.map(log => `<div style="padding:4px 0; border-bottom:1px solid #1a1a1a; font-family:monospace; font-size:11px; white-space:pre-wrap">${log}</div>`).join('');
   }
 }
 
@@ -233,8 +310,8 @@ async function doLogin() {
       addEvidence('LOGIN SUCCESS', 'User: ' + username + ' (Role: ' + data.user.role + ') - Password used: "' + password + '"');
       renderAppView();
       
-      if (!running) {
-        toggleTimer();
+      if (!investigationRunning) {
+        toggleInvestigationTimer();
       }
     } else {
       addEvidence('LOGIN FAILED', 'User: ' + username + ' - Password: "' + password + '" - Error: ' + data.error);
@@ -313,19 +390,16 @@ async function simulateFullAttack() {
     
     const data = await response.json();
     
-    // Parse the formatted attack log and add each line to evidence log
     if (data.formatted_attack_log) {
       const attackLines = data.formatted_attack_log.split('\n');
       for (let i = 0; i < attackLines.length; i++) {
         const line = attackLines[i];
         if (line.trim().length > 0) {
-          // Add each attack step to evidence log
           addEvidence('🔍 ATTACK DETAIL', line);
         }
       }
     }
     
-    // Add stolen data summary to evidence
     if (data.evidence && data.evidence.stolen_passwords) {
       addEvidence('📊 STOLEN DATA SUMMARY', 'Total users compromised: ' + data.evidence.stolen_passwords.length);
       data.evidence.stolen_passwords.forEach(function(user) {
@@ -333,12 +407,10 @@ async function simulateFullAttack() {
       });
     }
     
-    // Add backdoor account to evidence
     if (data.evidence && data.evidence.backdoor_credentials) {
       addEvidence('🚪 BACKDOOR ACCOUNT', 'Username: ' + data.evidence.backdoor_credentials.username + ' | Password: ' + data.evidence.backdoor_credentials.password);
     }
     
-    // Add vulnerabilities to evidence
     if (data.evidence && data.evidence.vulnerabilities) {
       addEvidence('🔴 VULNERABILITIES EXPLOITED', data.evidence.vulnerabilities.length + ' vulnerabilities found');
       data.evidence.vulnerabilities.forEach(function(v) {
@@ -346,7 +418,6 @@ async function simulateFullAttack() {
       });
     }
     
-    // Add security recommendations to evidence
     if (data.evidence && data.evidence.recommendations) {
       addEvidence('🔒 SECURITY RECOMMENDATIONS', 'Implement these fixes:');
       data.evidence.recommendations.forEach(function(rec) {
@@ -357,7 +428,6 @@ async function simulateFullAttack() {
     var compromisedCount = (data.attack_summary && data.attack_summary.data_stolen && data.attack_summary.data_stolen.users_compromised) ? data.attack_summary.data_stolen.users_compromised : 'Multiple';
     addEvidence('✅ ATTACK COMPLETE', 'Full attack executed. ' + compromisedCount + ' users compromised, backdoor created.');
     
-    // Show a simple success message (not the huge details)
     const resultBox = document.getElementById('attack-result');
     if (resultBox) {
       resultBox.style.display = 'block';
@@ -376,12 +446,6 @@ async function simulateFullAttack() {
     
   } catch (error) {
     addEvidence('❌ ATTACK FAILED', 'Error: ' + error.message);
-    const resultBox = document.getElementById('attack-result');
-    if (resultBox) {
-      resultBox.innerHTML = '❌ Error: ' + error.message;
-      resultBox.style.display = 'block';
-      resultBox.className = 'rbox err';
-    }
   }
 }
 
@@ -391,10 +455,10 @@ function logout() {
   currentUser = null;
   evidenceLog = [];
   renderAppView();
-  if (running) {
-    toggleTimer();
+  if (investigationRunning) {
+    toggleInvestigationTimer();
   }
-  resetTimer();
+  resetInvestigationTimer();
 }
 
 async function fetchServerLogs() {
@@ -435,7 +499,6 @@ async function fetchServerLogs() {
 function renderLoginView() {
   return `
     <div style="max-width:600px;margin:0 auto">
-      <!-- Attack Simulation Card - TOP of Login Page -->
       <div class="card" style="border-color: #dc2626; margin-bottom: 20px;">
         <div class="card-head" style="background: rgba(220, 38, 38, 0.2);">
           <h3 style="color: #fca5a5;">🚨 MALWARE SIMULATION - Click to see attack in action</h3>
@@ -488,7 +551,7 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <p>Welcome, ${currentUser ? currentUser.username : 'Admin'}!</p>
-          <p class="hint" style="color:var(--yellow)">⚠️ Timer started! You have 7 minutes to investigate. At 4 minutes, attacker will delete logs!</p>
+          <p class="hint" style="color:var(--yellow)">⚠️ Two threats to evidence: Attacker deletes logs at 4 min, Vercel cold start at 15 min!</p>
         </div>
       </div>
 
