@@ -13,20 +13,20 @@
 }
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 #hud{position:fixed;top:0;left:0;right:0;background:#0a0a0a;
-  border-bottom:1px solid var(--border);z-index:200}
-.timer-container{display:flex;justify-content:space-between;padding:8px 20px;border-bottom:1px solid #1a1a1a}
-.timer-box{text-align:center}
+  border-bottom:1px solid var(--border);z-index:200;padding:10px 20px;}
+.timer-container{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.timer-box{text-align:center;flex:1}
 .timer-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
-.timer-value{font-size:20px;font-weight:700;font-family:monospace}
-.timer-warning{font-size:9px;color:var(--yellow);margin-top:2px}
+.timer-value{font-size:24px;font-weight:700;font-family:monospace}
+.timer-warning{font-size:9px;margin-top:2px}
 #investigation-timer{color:var(--green)}
 #coldstart-timer{color:var(--blue)}
-#pbar{position:fixed;top:84px;left:0;height:3px;background:var(--green);transition:width 1s linear;z-index:200}
-.hud-btns{position:fixed;top:8px;right:20px;display:flex;gap:8px;z-index:200}
-.btn{background:#1d4ed8;color:#fff;border:none;cursor:pointer;font-weight:500;padding:5px 12px;border-radius:6px;font-size:12px}
+.button-group{display:flex;gap:8px}
+.btn{background:#1d4ed8;color:#fff;border:none;cursor:pointer;font-weight:500;padding:6px 14px;border-radius:6px;font-size:12px}
 .btn-ghost{background:#333;color:#fff}
 .btn-sm{padding:4px 10px}
-.wrap{max-width:1200px;margin:0 auto;padding:100px 20px 40px}
+#pbar{position:fixed;top:105px;left:0;height:3px;background:var(--green);transition:width 1s linear;z-index:200}
+.wrap{max-width:1200px;margin:0 auto;padding:120px 20px 40px}
 .card{background:var(--surface);border:1px solid #2a2a2a;border-radius:8px;margin-bottom:16px}
 .card-head{padding:11px 18px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center}
 .card-head h3{font-size:13px;font-weight:500;color:var(--muted)}
@@ -63,13 +63,13 @@ input{background:#0a0a0a;border:1px solid #333;color:var(--text);font-family:mon
     </div>
     <div class="timer-box">
       <div class="timer-label">⚠️ Vercel Cold Start Timer</div>
-      <div class="timer-value" id="coldstart-timer">15:00</div>
+      <div class="timer-value" id="coldstart-timer">05:00</div>
       <div class="timer-warning" id="coldstart-warning">Logs will be DELETED!</div>
     </div>
-  </div>
-  <div class="hud-btns">
-    <button class="btn btn-ghost btn-sm" onclick="resetInvestigationTimer()">Reset Investigation</button>
-    <button class="btn btn-sm" id="tbtn" onclick="toggleInvestigationTimer()">Start</button>
+    <div class="button-group">
+      <button class="btn btn-ghost btn-sm" onclick="resetInvestigationTimer()">Reset</button>
+      <button class="btn btn-sm" id="tbtn" onclick="toggleInvestigationTimer()">Start</button>
+    </div>
   </div>
 </div>
 <div id="pbar" style="width:100%"></div>
@@ -83,8 +83,8 @@ let investigationRunning = false;
 let investigationIv = null;
 let attackerLeftShown = false;
 
-// ========== COLD START TIMER (15 minutes = 900 seconds) ==========
-let coldstartRemaining = 900;
+// ========== COLD START TIMER (5 minutes = 300 seconds) ==========
+let coldstartRemaining = 300;
 let coldstartRunning = true;
 let coldstartIv = null;
 let coldstartWarningShown = false;
@@ -104,9 +104,11 @@ function drawTimers() {
   if (investigationRemaining < 60) {
     invEl.style.color = '#f87171';
     document.getElementById('investigation-warning').innerHTML = '⚠️ CRITICAL - Attacker will delete logs!';
+    document.getElementById('investigation-warning').style.color = '#f87171';
   } else if (investigationRemaining < 120) {
     invEl.style.color = '#facc15';
     document.getElementById('investigation-warning').innerHTML = '⚠️ Attacker preparing to delete logs';
+    document.getElementById('investigation-warning').style.color = '#facc15';
   } else {
     invEl.style.color = '#4ade80';
     document.getElementById('investigation-warning').innerHTML = '';
@@ -125,17 +127,17 @@ function drawTimers() {
     pb.style.background = '#4ade80';
   }
   
-  // Cold start timer
+  // Cold start timer (5 minutes = 300 seconds)
   const csM = Math.floor(coldstartRemaining / 60);
   const csS = coldstartRemaining % 60;
   const csEl = document.getElementById('coldstart-timer');
   csEl.textContent = pad(csM) + ':' + pad(csS);
   
-  if (coldstartRemaining < 300) {
+  if (coldstartRemaining < 60) {
     csEl.style.color = '#f87171';
     document.getElementById('coldstart-warning').innerHTML = '🔴 IMMINENT - Serverless function will COLD START!';
     document.getElementById('coldstart-warning').style.color = '#f87171';
-  } else if (coldstartRemaining < 600) {
+  } else if (coldstartRemaining < 120) {
     csEl.style.color = '#facc15';
     document.getElementById('coldstart-warning').innerHTML = '⚠️ Logs will be DELETED soon!';
     document.getElementById('coldstart-warning').style.color = '#facc15';
@@ -183,7 +185,7 @@ function showColdStartMessage() {
   
   const container = document.getElementById('server-logs-container');
   if (container) {
-    container.innerHTML = '<div class="log-entry log-critical">🔴 VERACEL COLD START OCCURRED 🔴<br>The serverless function restarted. ALL logs have been wiped from memory!<br><br>This demonstrates why serverless platforms are challenging for incident response - evidence disappears automatically!</div>';
+    container.innerHTML = '<div class="log-entry log-critical">🔴 VERCEL COLD START OCCURRED 🔴<br>The serverless function restarted. ALL logs have been wiped from memory!<br><br>This demonstrates why serverless platforms are challenging for incident response - evidence disappears automatically!</div>';
   }
   
   addEvidence('💀 EVIDENCE DESTROYED', 'Serverless cold start wiped all logs. No forensic evidence remains!');
@@ -191,7 +193,7 @@ function showColdStartMessage() {
   // Auto logout after cold start
   setTimeout(() => {
     if (currentUser) {
-      alert('🔴 VERACEL COLD START! 🔴\n\nThe serverless function has restarted and ALL logs have been wiped from memory.\n\nYou are being logged out. This demonstrates why persistent servers are better for security investigations!');
+      alert('🔴 VERCEL COLD START! 🔴\n\nThe serverless function has restarted and ALL logs have been wiped from memory.\n\nYou are being logged out. This demonstrates why persistent servers are better for security investigations!');
       logout();
     }
   }, 3000);
@@ -551,7 +553,7 @@ function renderAdminView() {
         </div>
         <div class="card-body">
           <p>Welcome, ${currentUser ? currentUser.username : 'Admin'}!</p>
-          <p class="hint" style="color:var(--yellow)">⚠️ Two threats to evidence: Attacker deletes logs at 4 min, Vercel cold start at 15 min!</p>
+          <p class="hint" style="color:var(--yellow)">⚠️ Two threats to evidence: Attacker deletes logs at 4 min, Vercel cold start at 5 min!</p>
         </div>
       </div>
 
