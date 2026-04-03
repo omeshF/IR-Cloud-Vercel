@@ -93,7 +93,6 @@ function pad(n) {
 }
 
 function drawTimers() {
-  // Investigation timer
   const invM = Math.floor(investigationRemaining / 60);
   const invS = investigationRemaining % 60;
   const invEl = document.getElementById('investigation-timer');
@@ -124,7 +123,6 @@ function drawTimers() {
     pb.style.background = '#4ade80';
   }
   
-  // Cold start timer
   const csM = Math.floor(coldstartRemaining / 60);
   const csS = coldstartRemaining % 60;
   const csEl = document.getElementById('coldstart-timer');
@@ -371,7 +369,7 @@ async function doAudit() {
 
 // ========== ATTACK SIMULATION ==========
 async function simulateFullAttack() {
-  addEvidence('ATTACK STARTED', 'Malware simulation triggered - Beginning 8-step attack');
+  addEvidence('ATTACK SIMULATION', 'Malware attack triggered');
   
   try {
     const response = await fetch('/api/attack', {
@@ -385,9 +383,9 @@ async function simulateFullAttack() {
     if (data.formatted_attack_log) {
       const attackLines = data.formatted_attack_log.split('\n');
       for (let i = 0; i < attackLines.length; i++) {
-        const line = attackLines[i];
+        let line = attackLines[i];
         if (line.trim().length > 0) {
-          // Skip summary lines and recommendation lines
+          // Skip unwanted lines
           const shouldSkip = line.includes('ATTACK SUMMARY') || 
                             line.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━') ||
                             line.includes('Total users compromised') ||
@@ -401,10 +399,41 @@ async function simulateFullAttack() {
                             line.includes('BACKDOOR ACCOUNT') ||
                             line.includes('SECURITY RECOMMENDATIONS') ||
                             line.includes('RECOMMENDATION') ||
-                            line.includes('ATTACK COMPLETE');
+                            line.includes('ATTACK COMPLETE') ||
+                            line.includes('ATTACK DETAIL') ||
+                            line.includes('ATTACK STARTED');
           
           if (!shouldSkip) {
-            addEvidence('ATTACK DETAIL', line);
+            // Clean up the line
+            line = line.replace('🔍 STEP 1: Attacker starts reconnaissance - trying common passwords', 'Reconnaissance: Trying common passwords');
+            line = line.replace('💥 STEP 2: Attacker tries buffer overflow attack with long string of A\'s', 'Buffer overflow attack with long string of As');
+            line = line.replace('✅ SUCCESS! Password "', 'SUCCESS - Password: ');
+            line = line.replace('" (10000 chars) was accepted!', ' (10000 characters) was accepted');
+            line = line.replace('🔴 VULNERABILITY: No input validation on password length', 'VULNERABILITY: No input validation on password length');
+            line = line.replace('✅ Logged in as admin using buffer overflow attack!', 'LOGIN SUCCESS: User: admin (Role: admin) - Password used: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...');
+            line = line.replace('📁 STEP 3: Attacker exploits IDOR vulnerability to steal user data', 'IDOR exploitation to steal user data');
+            line = line.replace('📋 STEP 4: Attacker accesses internal audit log', 'Accessing internal audit log');
+            line = line.replace('🎫 STEP 5: Attacker checks for active sessions', 'Checking for active sessions');
+            line = line.replace('🚪 STEP 6: Attacker creates backdoor admin account for persistent access', 'Creating backdoor admin account');
+            line = line.replace('🔓 STEP 7: Attacker attempts to crack passwords via brute force', 'Brute force password cracking');
+            line = line.replace('💾 STEP 8: Attacker packages stolen data for exfiltration', 'Packaging stolen data for exfiltration');
+            line = line.replace('  ✅ Retrieved', 'Retrieved');
+            line = line.replace('  ✅ Found', 'Found');
+            line = line.replace('  ✅ Backdoor account created:', 'Backdoor account created:');
+            line = line.replace('  ✅ CRACKED!', 'CRACKED:');
+            line = line.replace('  ❌ Attempted password:', 'Attempted password:');
+            line = line.replace('  📋 User ID', 'User ID');
+            line = line.replace('     → Password:', '- Password:');
+            line = line.replace('     → Credit Card:', '- Credit Card:');
+            line = line.replace('     → SSN:', '- SSN:');
+            line = line.replace('     → Salary:', '- Salary:');
+            
+            // Remove any remaining emojis
+            line = line.replace(/[^\w\s\:\-\.\,\$\(\)]/g, '');
+            
+            if (line.trim().length > 0) {
+              addEvidence('', line);
+            }
           }
         }
       }
